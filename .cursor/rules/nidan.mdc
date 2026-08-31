@@ -1,0 +1,71 @@
+---
+description: Nidan project rules — architecture, consent invariants, conventions, and the checks to run after every change.
+globs:
+alwaysApply: true
+---
+
+# Nidan
+
+**Before making any change, read `AGENTS.md` at the repository root.** It is the
+source of truth for this codebase and is kept up to date. What follows is the
+short version, so it applies even when that file is not open.
+
+This is a finished, tested application (39 passing end-to-end tests), not a
+scaffold. Treat existing code as deliberate. Prefer small reviewable changes.
+
+## Never break these
+
+1. **Consent is enforced at the data layer.** Every clinical read goes through
+   the gated accessors in `src/lib/db/store.ts` (`caseSheetsFor`, `vitalsFor`,
+   `documentsFor`, …), which call `assertAccess()` and write an audit row. Never
+   read `db.caseSheets` and friends directly from a page, action or route.
+   The SQL twin is `has_care_access()` in `supabase/migrations/006_governance.sql`
+   — change the rule in one place, change it in both.
+2. **Clinical records are append-only.** Finalised case sheets are immutable;
+   corrections create a linked amendment. Never add a delete path.
+3. **Time is IST wall-clock stored as UTC.** Always use `src/lib/tz.ts`. Never
+   use `new Date().getHours()`, `.getDay()` or `.toISOString().slice(0,10)` for
+   anything clinic-related.
+4. **The public emergency card (`/e/[token]`) exposes exactly six things** —
+   blood group, allergies, current medications, chronic conditions, organ donor
+   status, emergency contacts. Never widen that slice.
+5. **AI output is always labelled with `<AiLabel />`**, never auto-enters the
+   record, never diagnoses or prescribes, and always has an offline fallback.
+6. **Secrets are never prefixed `NEXT_PUBLIC_`.**
+7. **`src/lib/db/seed.ts` and `supabase/seed.sql` describe the same world with
+   the same UUIDs.** Keep them in sync. Never delete the mock store — it is the
+   demo-day fallback.
+
+## Conventions
+
+- Next.js 15 App Router, React 19, TypeScript strict. Server Components by
+  default; `"use client"` only when state, effects or handlers are needed.
+  Mutations are Server Actions in `src/app/actions/`.
+- Tailwind v4. Use the CSS custom properties from `src/app/globals.css`
+  (`var(--color-brand)`, `var(--color-ink-2)`, …). **Never hardcode a hex value.**
+- Light is the default and the app ignores `prefers-color-scheme`; dark is
+  opt-in via `<ThemeToggle />`. Text on a filled colour uses
+  `--color-on-brand` / `--color-on-critical` / `--color-on-good`, never
+  `text-white`. Permanently-dark chrome uses `--color-chrome`.
+- Semantic colour is reserved for clinical meaning. `--color-critical` means
+  allergy, emergency, out-of-range, destructive — nothing else. Never encode
+  status by colour alone; pair it with an icon or label.
+- Charts use `--chart-1` … `--chart-6`, a palette validated for colourblind
+  separation in both themes. Do not substitute other hues.
+- Every new patient-facing string goes into **both** catalogues in
+  `src/lib/i18n.ts` (en and hi). Doctor clinical vocabulary stays English.
+- 44×44px touch targets, 16px minimum body text on the patient app, visible
+  focus rings, skeleton loaders rather than spinners, empty states with an
+  action, destructive actions confirm.
+- Comments explain *why*. Match the existing voice: direct, specific, no filler.
+
+## After every change
+
+```bash
+npm run typecheck   # clean
+npm run build       # compiles
+npm run smoke       # 39 assertions, all pass
+```
+
+Never weaken a test assertion to make it pass. Never run
+`npm audit fix --force` — `next` and `postcss` are pinned deliberately.

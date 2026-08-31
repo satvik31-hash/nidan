@@ -1,0 +1,323 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────────────────────
+   Nidan design tokens — §07 of the blueprint.
+   Semantic colour is reserved for clinical meaning. If red appears
+   anywhere that is not a warning, the warning stops working.
+   ─────────────────────────────────────────────────────────────── */
+
+@theme {
+  --color-brand: #2563a8;
+  --color-brand-soft: #e8f0f9;
+  --color-brand-ink: #1b4c87;
+  --color-ink: #0f172a;
+  --color-ink-2: #475569;
+  --color-ink-3: #7b8794;
+  --color-paper: #fbfcfd;
+  --color-surface: #ffffff;
+  --color-line: #e3e8ef;
+  --color-critical: #a02f42;
+  --color-critical-soft: #fbecef;
+  --color-warning: #9a5b12;
+  --color-warning-soft: #fdf2e4;
+  --color-good: #2c6b4c;
+  --color-good-soft: #e8f4ed;
+
+  /* Inverted chrome — the doctor console bar and the doctor card on /start.
+     These are NOT --color-ink / --color-paper: those two swap in dark mode,
+     which would turn the console header white exactly when the rest of the
+     app went dark. Chrome stays dark in both themes on purpose. */
+  --color-chrome: #101a2b;
+  --color-chrome-ink: #eef2f7;
+
+  /* Text that sits ON the brand colour. White works on the light theme's deep
+     blue; on the dark theme the brand is a pale blue, where white text is
+     about 1.9:1 and unreadable. This flips to dark ink there instead. */
+  --color-on-brand: #ffffff;
+  --color-on-critical: #ffffff;
+  --color-on-good: #ffffff;
+
+  --radius-card: 8px;
+  --radius-input: 6px;
+  --radius-pill: 999px;
+
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* 12 / 14 / 16 / 20 / 26 / 34 / 44 — one step larger on the patient app */
+  --text-xxs: 0.75rem;
+  --text-xs: 0.875rem;
+  --text-sm: 1rem;
+  --text-base: 1.25rem;
+  --text-lg: 1.625rem;
+  --text-xl: 2.125rem;
+  --text-xxl: 2.75rem;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-modal: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.1);
+}
+
+/* ── Chart palette ────────────────────────────────────────────
+   Assigned in fixed order and never cycled. Both the light and the
+   dark steps were checked with the palette validator: lightness band,
+   chroma floor, adjacent-pair separation under deuteranopia and
+   tritanopia, normal-vision separation, and contrast against the
+   chart surface. Dark is its own set of steps, not an automatic flip.
+
+   These are chart-only hues. They never carry clinical status —
+   good / warning / critical stay reserved for that, and always ship
+   with an icon or a text label beside them.
+
+   Dark is applied only under [data-theme="dark"], never by OS preference.
+   ─────────────────────────────────────────────────────────────── */
+:root {
+  --chart-1: #0987a0; /* consultation */
+  --chart-2: #c85a00; /* pharmacy */
+  --chart-3: #4453c9; /* lab */
+  --chart-4: #8c7c00; /* imaging */
+  --chart-5: #ae2f92; /* procedure */
+  --chart-6: #178f52; /* room */
+  --chart-grid: #e7ebf0;
+  --chart-axis: #7b8794;
+  --chart-band: #f1f5f9;
+}
+
+:root[data-theme="dark"] {
+  --chart-1: #1fa5b8;
+  --chart-2: #d97524;
+  --chart-3: #6c79d8;
+  --chart-4: #a4941c;
+  --chart-5: #c452a6;
+  --chart-6: #2fa96d;
+  --chart-grid: #1f2a38;
+  --chart-axis: #77869a;
+  --chart-band: #121a24;
+}
+
+/* Light is the product, not a preference.
+   The app deliberately does NOT follow prefers-color-scheme: a clinic screen
+   that flips to dark because the doctor's laptop is in night mode is a
+   different product from the one that was designed and reviewed, and half the
+   reason to pick a calm palette is that everyone sees the same calm palette.
+   Dark is still there for anyone who wants it — it is opt-in through the theme
+   toggle, which sets data-theme="dark" and is remembered per device. */
+:root {
+  color-scheme: light;
+  --scale: 1; /* three-step patient text-size control */
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-brand: #74a9e8;
+  --color-brand-soft: #10233d;
+  --color-brand-ink: #a8cbf5;
+  --color-ink: #e8edf3;
+  --color-ink-2: #a5b2c2;
+  --color-ink-3: #77869a;
+  --color-paper: #0b1119;
+  --color-surface: #121a24;
+  --color-line: #1f2a38;
+  --color-critical: #e9808f;
+  --color-critical-soft: #2a1519;
+  --color-warning: #e3a75e;
+  --color-warning-soft: #2a1f10;
+  --color-good: #74c49a;
+  --color-good-soft: #10241b;
+  --color-chrome: #060b12;
+  --color-chrome-ink: #dfe6ee;
+  --color-on-brand: #0a1420;
+  --color-on-critical: #2a0f14;
+  --color-on-good: #06231a;
+}
+
+html {
+  font-size: calc(100% * var(--scale));
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* digits stack — vitals, bills, lab values, slot times */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Minimum body size 16px on the patient app. Non-negotiable. */
+.patient-surface {
+  font-size: 16px;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Cursor ───────────────────────────────────────────────────
+   A first-aid cross instead of the system arrow. Two states only:
+   outlined when idle, filled-and-ringed over anything clickable, so
+   "this responds to a click" is still legible without the OS pointer.
+   Text inputs keep the native I-beam — a caret has to look like a
+   caret or people cannot tell where they are typing. The cursor is
+   dropped entirely on coarse pointers (there is none to style) and
+   for anyone who asked for reduced motion-free, high-contrast UI via
+   forced-colors.
+   ─────────────────────────────────────────────────────────────── */
+:root {
+  --cursor-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'%3E%3Cpath d='M10 2.4h6v7.6h7.6v6H16v7.6h-6V16H2.4v-6H10z' fill='%23d7263d' stroke='%23ffffff' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E")
+    13 13;
+  --cursor-cross-active: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Ccircle cx='15' cy='15' r='13.4' fill='%23d7263d' stroke='%23ffffff' stroke-width='1.8'/%3E%3Cpath d='M12.6 6.6h4.8v5.4h5.4v4.8h-5.4v5.4h-4.8v-5.4H7.2v-4.8h5.4z' fill='%23ffffff'/%3E%3C/svg%3E")
+    15 15;
+}
+
+@media (pointer: fine) {
+  body {
+    cursor: var(--cursor-cross), default;
+  }
+
+  a,
+  button,
+  summary,
+  label[for],
+  select,
+  [role="button"],
+  [role="tab"],
+  [role="option"] {
+    cursor: var(--cursor-cross-active), pointer;
+  }
+
+  a:disabled,
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  [contenteditable="true"] {
+    cursor: text;
+  }
+}
+
+@media (forced-colors: active) {
+  body,
+  a,
+  button {
+    cursor: auto;
+  }
+}
+
+@layer components {
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+
+  .card-elevated {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .field {
+    width: 100%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-input);
+    padding: 0.5rem 0.625rem;
+    color: var(--color-ink);
+    font-size: 0.9375rem;
+  }
+  .field::placeholder {
+    color: var(--color-ink-3);
+  }
+  .field:disabled {
+    background: var(--color-paper);
+    color: var(--color-ink-3);
+  }
+
+  .label {
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+    margin-bottom: 0.25rem;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: var(--radius-pill);
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid var(--color-line);
+    white-space: nowrap;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  /* Skeleton loaders, not spinners. A spinner reads as broken. */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-line) 25%,
+      var(--color-paper) 37%,
+      var(--color-line) 63%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+    border-radius: 6px;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* Real targets: 44×44px minimum on touch */
+@media (pointer: coarse) {
+  button,
+  a[role="button"],
+  .tap {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  @page {
+    margin: 14mm;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "Nidan — your health record",
+  "short_name": "Nidan",
+  "description": "A consent-aware clinical record and case-taking platform.",
+  "start_url": "/patient/records",
+  "display": "standalone",
+  "background_color": "#FBFCFD",
+  "theme_color": "#2563A8",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Emergency", "url": "/patient/emergency" },
+    { "name": "My records", "url": "/patient/records" },
+    { "name": "Book an appointment", "url": "/patient/book" }
+  ]
+}
