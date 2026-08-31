@@ -5,13 +5,31 @@ import { WifiOff } from "lucide-react";
 
 /** Registers the service worker and shows a persistent offline indicator.
  *  Toggling airplane mode mid-demo and continuing to use the app is a
- *  fifteen-second segment nobody forgets. */
+ *  fifteen-second segment nobody forgets.
+ *
+ *  Set NEXT_PUBLIC_DISABLE_SW=true to turn the worker off and actively
+ *  unregister any copy already installed in the visitor's browser. It is a
+ *  demo-day kill switch: a service worker is the one part of this app that
+ *  keeps running after a bad deploy, and being able to disable it from an
+ *  environment variable — with no code change and no cache to clear by hand —
+ *  is worth the six lines. */
 export function OfflineIndicator() {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    const disabled = process.env.NEXT_PUBLIC_DISABLE_SW === "true";
+    if ("serviceWorker" in navigator) {
+      if (disabled) {
+        // Unregister, and drop the caches too — an unregistered worker leaves
+        // its caches behind, and a stale cached page is the whole problem.
+        navigator.serviceWorker.getRegistrations()
+          .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+          .then(() => caches?.keys())
+          .then((keys) => Promise.all((keys ?? []).map((k) => caches.delete(k))))
+          .catch(() => {});
+      } else if (process.env.NODE_ENV === "production") {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      }
     }
     const on = () => setOffline(false);
     const off = () => setOffline(true);

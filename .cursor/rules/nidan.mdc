@@ -10,7 +10,7 @@ alwaysApply: true
 source of truth for this codebase and is kept up to date. What follows is the
 short version, so it applies even when that file is not open.
 
-This is a finished, tested application (39 passing end-to-end tests), not a
+This is a finished, tested application (40 passing end-to-end tests), not a
 scaffold. Treat existing code as deliberate. Prefer small reviewable changes.
 
 ## Never break these
@@ -64,7 +64,7 @@ scaffold. Treat existing code as deliberate. Prefer small reviewable changes.
 ```bash
 npm run typecheck   # clean
 npm run build       # compiles
-npm run smoke       # 39 assertions, all pass
+npm run smoke       # 40 assertions, all pass
 ```
 
 Never weaken a test assertion to make it pass. Never run

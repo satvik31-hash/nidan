@@ -108,7 +108,7 @@ npm run typecheck                  # tsc --noEmit
 npm run build && npm start         # production build, 32 routes
 
 npx playwright install chromium    # once
-npm run smoke                      # 39 end-to-end assertions
+npm run smoke                      # 40 end-to-end assertions
 ```
 
 `smoke.mjs` drives the whole demo path in a real browser: OTP login, the Hindi

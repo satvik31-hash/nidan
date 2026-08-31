@@ -226,6 +226,17 @@ declare
     'Upper respiratory tract infection','Osteoarthritis of knee','Iron deficiency anaemia',
     'Gastro-oesophageal reflux disease','Asthma, mild persistent'];
   icds text[] := array['5A11','BA00','1D4Z','CA07','FA01','3A00.0','DA22','CA23'];
+  -- Prescriptions, investigations and reports were missing from this seed
+  -- while the mock store had them, so a Supabase-backed build showed patients
+  -- with a history but no medicines. These arrays mirror the mock's world.
+  rx_drugs text[] := array['Metformin (Glycomet)','Telmisartan (Telma)','Rosuvastatin (Rosuvas)',
+    'Paracetamol (Crocin)','Amlodipine (Amlong)','Pantoprazole (Pan)','Cetirizine (Cetzine)',
+    'Salbutamol (Asthalin)'];
+  rx_dose  text[] := array['500 mg','40 mg','10 mg','650 mg','5 mg','40 mg','10 mg','100 mcg'];
+  rx_freq  text[] := array['1-0-1','1-0-0','0-0-1','1-1-1','1-0-0','1-0-0','0-0-1','1-1-1'];
+  panels   text[] := array['Complete Blood Count','Renal function panel','Liver function panel',
+    'HbA1c','Lipid profile','Thyroid profile'];
+  rx uuid;
 begin
   foreach p in array array[
     'c1000000-0000-4000-8000-000000000001'::uuid,
@@ -282,6 +293,58 @@ begin
         (b,'consultation','OPD consultation',1, 600),
         (b,'pharmacy','Dispensed medication', 1, (n % 9) * 120),
         (b,'lab','Laboratory panel', 1, (n % 5) * 180);
+
+      -- A prescription with two items, and a verify token so the pharmacist
+      -- page at /verify/[token] resolves against a real row.
+      insert into prescriptions (case_sheet_id, patient_id, doctor_id, issued_at, verify_token)
+      values (cs, p, d, day + interval '20 minutes', 'RX-' || lpad(n::text, 6, '0'))
+      returning id into rx;
+
+      insert into prescription_items (prescription_id, drug_text, dose, frequency, timing, duration_days, quantity)
+      values
+        (rx, rx_drugs[(n % 8) + 1], rx_dose[(n % 8) + 1], rx_freq[(n % 8) + 1],
+         'after food', 30,
+         30 * (length(replace(rx_freq[(n % 8) + 1],'-','')) -
+               length(replace(replace(rx_freq[(n % 8) + 1],'-',''),'0','')))),
+        (rx, rx_drugs[((n + 3) % 8) + 1], rx_dose[((n + 3) % 8) + 1], '1-0-0',
+         'before food', 15, 15);
+
+      -- Every third visit orders a panel; every fourth also files the report,
+      -- with the analyte values pre-extracted the way the OCR pipeline would.
+      if n % 3 = 0 then
+        insert into investigation_orders (case_sheet_id, patient_id, test_name, panel, urgency, status, ordered_at)
+        values (cs, p, panels[(n % 6) + 1], panels[(n % 6) + 1],
+                case when n % 12 = 0 then 'urgent' else 'routine' end,
+                case when n % 4 = 0 then 'reported' else 'ordered' end,
+                day + interval '15 minutes');
+      end if;
+
+      if n % 4 = 0 then
+        insert into documents (patient_id, case_sheet_id, kind, title, storage_path, mime_type,
+          size_bytes, report_date, ordering_doctor, ocr_text, extracted_values, uploaded_by, uploaded_at)
+        values (p, cs, 'lab_report',
+          panels[(n % 6) + 1] || ' — ' || to_char(day, 'DD Mon YYYY'),
+          'reports/' || p::text || '/' || n::text || '.pdf', 'application/pdf',
+          180000 + (n % 40) * 1000, day::date, d,
+          'Haemoglobin ' || (10.4 + (n % 40) / 10.0)::numeric(4,1) || ' g/dL. Creatinine ' ||
+            (0.7 + (n % 14) / 10.0)::numeric(4,1) || ' mg/dL. TLC ' || (5200 + (n % 60) * 90) || ' /cumm.',
+          jsonb_build_array(
+            jsonb_build_object('analyte','Haemoglobin','value',(10.4 + (n % 40) / 10.0)::numeric(4,1),
+              'unit','g/dL','ref','12-15','flag', case when (10.4 + (n % 40) / 10.0) < 12 then 'low' else 'normal' end),
+            jsonb_build_object('analyte','Creatinine','value',(0.7 + (n % 14) / 10.0)::numeric(4,1),
+              'unit','mg/dL','ref','0.6-1.2','flag', case when (0.7 + (n % 14) / 10.0) > 1.2 then 'high' else 'normal' end),
+            jsonb_build_object('analyte','TLC','value',(5200 + (n % 60) * 90),
+              'unit','/cumm','ref','4000-11000','flag', case when (5200 + (n % 60) * 90) > 11000 then 'high' else 'normal' end)),
+          p, day + interval '1 day');
+      end if;
+
+      -- Two systemic findings per visit, so the case sheet's examination
+      -- section is not empty on a Supabase-backed read.
+      insert into examination_findings (case_sheet_id, system, method, finding, is_normal) values
+        (cs, 'cvs', 'auscultation',
+         case when n % 6 = 0 then 'Soft systolic murmur at apex' else 'S1 S2 normal, no murmur' end, n % 6 <> 0),
+        (cs, 'respiratory', 'auscultation',
+         case when n % 5 = 0 then 'Scattered rhonchi both lung fields' else 'Bilateral air entry equal, clear' end, n % 5 <> 0);
     end loop;
   end loop;
 end $$;

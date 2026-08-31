@@ -4,7 +4,7 @@
 //   npm run build && npm start          (in another terminal)
 //   npm run smoke                       (or: node smoke.mjs http://localhost:3000)
 //
-// 39 assertions. If they all pass, the demo path works.
+// 40 assertions. If they all pass, the demo path works.
 import { chromium } from "playwright";
 
 const BASE = process.argv[2] ?? "http://localhost:3210";
@@ -275,10 +275,15 @@ try {
   // An illegal block must be refused by the server, not accepted and repaired.
   await ends.nth(1).fill("09:07");
   await doc.getByRole("button", { name: "Save day" }).click();
-  await doc.waitForSelector('[role="alert"]', { timeout: 15000 });
-  const refusal = await doc.textContent('[role="alert"]');
+  // Match the message itself rather than [role="alert"] — the page has other
+  // live regions (the autosave announcer among them) and an empty one was
+  // satisfying the wait.
+  const refusalEl = doc.getByText(/does not divide into/i).first();
+  const refused = await refusalEl.waitFor({ state: "visible", timeout: 15000 })
+    .then(() => true).catch(() => false);
+  const refusal = refused ? await refusalEl.textContent() : "(no message)";
   check("availability rejects a block that does not divide into slots",
-    /does not divide/i.test(refusal), `${blockCount} inputs · ${refusal.slice(0, 50)}`);
+    refused, `${blockCount} inputs · ${refusal.slice(0, 50)}`);
 
   // A legal change saves and comes back from the server.
   await ends.nth(1).fill("12:00");
@@ -337,6 +342,31 @@ try {
     stuck.attr === "dark" && sr < 60 && sg < 60 && sb < 60, `${stuck.attr} ${stuck.bg}`);
 
   await darkOs.close();
+
+  // ── 15 · The service worker never caches an auth-gated page ─
+  // v1 precached /patient/records; signed out that redirects to the login
+  // page, which then sat in the cache pretending to be the records page.
+  // This is production-only behaviour, so only a production build catches it.
+  const swCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const sp = await swCtx.newPage();
+  await sp.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  const swState = await sp.evaluate(async () => {
+    if (!("serviceWorker" in navigator)) return { supported: false, keys: [] };
+    await navigator.serviceWorker.ready.catch(() => {});
+    // Give the install handler a moment to populate the cache.
+    await new Promise((r) => setTimeout(r, 1500));
+    const names = await caches.keys();
+    const keys = [];
+    for (const n of names) {
+      const c = await caches.open(n);
+      for (const req of await c.keys()) keys.push(new URL(req.url).pathname);
+    }
+    return { supported: true, keys };
+  });
+  const leaked = swState.keys.filter((k) => /^\/(patient|doctor)(\/|$)/.test(k));
+  check("the service worker caches no auth-gated route",
+    leaked.length === 0, leaked.join(", ") || `${swState.keys.length} public entries`);
+  await swCtx.close();
 
   // Google Fonts and the favicon are unreachable in the offline test sandbox;
   // those are environmental, not application errors.

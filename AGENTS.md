@@ -6,7 +6,7 @@ codebase works and what must not break.
 Nidan is a consent-aware clinical record and case-taking platform for Indian
 hospitals, built for the Smart India Hackathon problem statement *Patient
 Case-Taking Software*. It is a **finished, working, tested application** — not a
-scaffold. 39 end-to-end tests pass. Treat existing code as deliberate.
+scaffold. 40 end-to-end tests pass. Treat existing code as deliberate.
 
 ---
 
@@ -144,7 +144,7 @@ specific, no filler. Do not add comments that restate the code.
 ```bash
 npm run typecheck      # must be clean
 npm run build          # must compile
-npm run smoke          # 39 assertions, all must pass
+npm run smoke          # 40 assertions, all must pass
 ```
 
 `npm run smoke` needs the app running (`npm run build && npm start`) in another
@@ -215,6 +215,20 @@ letting the site show something that no longer exists.
 `GET /api/demo/reset` restores an identical clean state.
 
 ---
+
+## The service worker is production-only — treat it as such
+
+`public/sw.js` registers only when `NODE_ENV === "production"`, so nothing it
+does is visible during `npm run dev`. Every bug in it therefore appears for the
+first time on a deployment.
+
+Never precache a route behind auth. v1 precached `/patient/records`; signed out
+that redirects to the login page, which was then stored under the records key,
+so a signed-in user could be served a login screen from cache and reasonably
+conclude that signing in had failed. The worker now precaches public routes
+only, refuses to cache any redirected or non-200 response, and never caches
+`/api/*` or RSC payloads. Bump `VERSION` whenever you change it, or clients
+keep the old worker.
 
 ## What is deliberately unfinished
 
