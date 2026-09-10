@@ -1,51 +1,41 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, FileText, Search, Stethoscope, User } from "lucide-react";
+import { Search } from "lucide-react";
+import type { CommandEntry } from "@/lib/commands";
 
 interface Hit { label: string; sub?: string; href: string; icon: React.ElementType }
 
-const STATIC: Hit[] = [
-  { label: "Today's queue", href: "/doctor", icon: CalendarDays },
-  { label: "Patient lookup", href: "/doctor/lookup", icon: Search },
-  { label: "My profile and availability", href: "/doctor/profile", icon: User },
-  { label: "Open an emergency card", sub: "break-glass", href: "/scan", icon: Stethoscope },
-];
-
 export function CommandPalette({
-  onClose, onNavigate,
-}: { onClose: () => void; onNavigate: (href: string) => void }) {
+  staticHits, search, placeholder, onClose, onNavigate,
+}: {
+  /** The fixed, role-specific destinations — e.g. `doctorCommands` from `@/lib/commands`. */
+  staticHits: CommandEntry[];
+  /** Optional live search (e.g. patient lookup by name/MRN), keyed by the typed query. */
+  search?: (q: string) => Promise<Hit[]>;
+  placeholder?: string;
+  onClose: () => void;
+  onNavigate: (href: string) => void;
+}) {
   const [q, setQ] = useState("");
-  const [patients, setPatients] = useState<Hit[]>([]);
+  const [liveHits, setLiveHits] = useState<Hit[]>([]);
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   useEffect(() => {
-    if (q.length < 2) { setPatients([]); return; }
-    const c = new AbortController();
-    fetch(`/api/patients?q=${encodeURIComponent(q)}`, { signal: c.signal })
-      .then((r) => r.json())
-      .then((j: { results: { id: string; full_name: string; mrn: string; age: number }[] }) =>
-        setPatients(
-          j.results.map((p) => ({
-            label: p.full_name,
-            sub: `${p.mrn} · ${p.age} y`,
-            href: `/doctor/patient/${p.id}`,
-            icon: FileText,
-          })),
-        ),
-      )
-      .catch(() => {});
-    return () => c.abort();
-  }, [q]);
+    if (!search || q.length < 2) { setLiveHits([]); return; }
+    let cancelled = false;
+    search(q).then((hits) => { if (!cancelled) setLiveHits(hits); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [q, search]);
 
   const hits = useMemo(() => {
     const needle = q.toLowerCase();
-    const statics = STATIC.filter((h) => !needle || h.label.toLowerCase().includes(needle));
-    return [...patients, ...statics];
-  }, [q, patients]);
+    const statics = staticHits.filter((h) => !needle || h.label.toLowerCase().includes(needle));
+    return [...liveHits, ...statics];
+  }, [q, liveHits, staticHits]);
 
   useEffect(() => setCursor(0), [q]);
 
@@ -65,7 +55,7 @@ export function CommandPalette({
               if (e.key === "ArrowUp") { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); }
               if (e.key === "Enter" && hits[cursor]) onNavigate(hits[cursor].href);
             }}
-            placeholder="Jump to a patient by name, MRN, ABHA or phone…"
+            placeholder={placeholder ?? "Jump to…"}
             className="w-full h-12 bg-transparent outline-none text-[0.9375rem]"
           />
         </div>

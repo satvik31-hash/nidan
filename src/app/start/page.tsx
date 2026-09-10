@@ -30,16 +30,35 @@ export default async function Start() {
           </span>
           <span className="eyebrow hidden sm:block">Patient case-taking software</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="hidden sm:flex items-center gap-4">
+            <Link href="/" className="text-sm text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
+              About Nidan
+            </Link>
+            <Link href="/scan" className="text-sm text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
+              Scan an emergency card
+            </Link>
+            <Link href="/login/admin" className="text-sm text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
+              Administration
+            </Link>
+          </div>
           <ThemeToggle />
-          <Link href="/" className="text-sm text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
-            About Nidan
-          </Link>
-          <Link href="/scan" className="text-sm text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
-            Scan an emergency card
-          </Link>
         </div>
       </header>
+
+      {/* Secondary entry points, shown below the fold on small screens where
+          the header row above hides them to avoid horizontal overflow. */}
+      <div className="flex sm:hidden flex-wrap gap-3 px-6 -mt-2 mb-2">
+        <Link href="/" className="text-xs text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
+          About Nidan
+        </Link>
+        <Link href="/scan" className="text-xs text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
+          Scan an emergency card
+        </Link>
+        <Link href="/login/admin" className="text-xs text-[var(--color-ink-2)] hover:text-[var(--color-brand)]">
+          Administration
+        </Link>
+      </div>
 
       <div className="flex-1 flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-4xl">
@@ -50,7 +69,7 @@ export default async function Start() {
                 {" "}from an earlier session.
               </span>
               <Link
-                href={session.role === "doctor" ? "/doctor" : "/patient"}
+                href={session.role === "doctor" ? "/doctor" : session.role === "admin" ? "/admin" : "/patient"}
                 className="pill px-3 py-1.5 bg-[var(--color-brand)] text-[var(--color-on-brand)] border-[var(--color-brand)]"
               >
                 Continue as {shortName}

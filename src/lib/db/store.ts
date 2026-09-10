@@ -12,7 +12,7 @@
 import * as seed from "./seed";
 import { addIstDays, fmtIstTime, istDay, istHour, istInstant, istMinute, istWeekday } from "@/lib/tz";
 import type {
-  AccessAuditRow, AccessRequest, Allergy, Appointment, ApptStatus, Bill,
+  AccessAuditRow, AccessRequest, AdminAuditRow, Allergy, Appointment, ApptStatus, Bill,
   CareRelationship, CaseSheet, ChronicCondition, DailyCheckin, DeviceReading,
   Diagnosis, Doctor, DocumentRecord, EmergencyCard, EmergencyContact,
   FamilyHistory, Hospital, InsurancePolicy, InvestigationOrder, Patient,
@@ -48,6 +48,8 @@ interface Store {
   accessAudit: AccessAuditRow[];
   accessRequests: AccessRequest[];
   auditSeq: number;
+  adminAudit: AdminAuditRow[];
+  adminAuditSeq: number;
 }
 
 function build(): Store {
@@ -79,6 +81,8 @@ function build(): Store {
     accessAudit: [],
     accessRequests: [],
     auditSeq: 1,
+    adminAudit: [],
+    adminAuditSeq: 1,
   };
 }
 
@@ -1026,6 +1030,130 @@ export function reissueEmergencyCard(patientId: string) {
 
 export function emergencyCardFor(patientId: string) {
   return db.emergencyCards.find((c) => c.patient_id === patientId && !c.revoked_at) ?? null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Administration — company-wide oversight. Every function here is
+// read-only, gated to the admin role, and audited. Per-patient detail
+// reuses the existing gated `*For(actor, patientId)` functions above —
+// assertAccess() already passes an admin actor through — rather than a
+// parallel read path.
+// ═══════════════════════════════════════════════════════════════
+
+function assertAdmin(actor: Actor): void {
+  if (actor.role !== "admin") throw new Error("Administration access only");
+}
+
+function auditAdmin(actor: Actor, resource: string): void {
+  db.adminAudit.unshift({
+    id: db.adminAuditSeq++, actor_id: actor.id,
+    actor_name: getProfile(actor.id)?.full_name ?? "Unknown",
+    resource, at: new Date().toISOString(),
+  });
+  if (db.adminAudit.length > 1000) db.adminAudit.length = 1000;
+}
+
+export function platformStats(actor: Actor) {
+  assertAdmin(actor);
+  auditAdmin(actor, "stats");
+  const today = istDay();
+  const activeConsents = db.careRelationships.filter(
+    (r) => !r.revoked_at && new Date(r.expires_at).getTime() > Date.now(),
+  );
+  const outstandingBillTotal = db.bills
+    .filter((b) => b.status !== "paid")
+    .reduce((sum, b) => sum + b.patient_payable, 0);
+  return {
+    patients: db.patients.length,
+    doctors: db.doctors.length,
+    hospitals: db.hospitals.length,
+    appointmentsToday: db.appointments.filter((a) => istDay(a.slot_start) === today).length,
+    activeConsents: activeConsents.length,
+    outstandingBillTotal,
+  };
+}
+
+export function listAllPatients(actor: Actor) {
+  assertAdmin(actor);
+  auditAdmin(actor, "patients:list");
+  return db.patients
+    .map((p) => patientHeader(p.id)!)
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+}
+
+export function listAllDoctors(actor: Actor) {
+  assertAdmin(actor);
+  auditAdmin(actor, "doctors:list");
+  return db.doctors
+    .map((d) => doctorCard(d.id)!)
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+}
+
+export function listAllHospitals(actor: Actor) {
+  assertAdmin(actor);
+  auditAdmin(actor, "hospitals:list");
+  return db.hospitals.map((h) => ({
+    ...h,
+    doctorCount: seed.doctorHospitals.filter((dh) => dh.hospital_id === h.id).length,
+    visitCount: db.caseSheets.filter((c) => c.hospital_id === h.id).length,
+  }));
+}
+
+export function listAllAppointments(actor: Actor, opts: { limit?: number } = {}) {
+  assertAdmin(actor);
+  auditAdmin(actor, "appointments:list");
+  return [...db.appointments]
+    .sort((a, b) => b.slot_start.localeCompare(a.slot_start))
+    .slice(0, opts.limit ?? 200)
+    .map((a) => ({
+      ...a,
+      patientName: getProfile(a.patient_id)?.full_name ?? "Unknown",
+      doctorName: getProfile(a.doctor_id)?.full_name ?? "Unknown",
+      hospitalName: getHospital(a.hospital_id)?.name ?? "Unknown",
+    }));
+}
+
+export function listAllBills(actor: Actor, opts: { limit?: number } = {}) {
+  assertAdmin(actor);
+  auditAdmin(actor, "bills:list");
+  return [...db.bills]
+    .sort((a, b) => b.billed_on.localeCompare(a.billed_on))
+    .slice(0, opts.limit ?? 300)
+    .map((b) => ({
+      ...b,
+      patientName: getProfile(b.patient_id)?.full_name ?? "Unknown",
+      hospitalName: getHospital(b.hospital_id)?.name ?? "Unknown",
+    }));
+}
+
+export function listAllCareRelationships(actor: Actor) {
+  assertAdmin(actor);
+  auditAdmin(actor, "consents:list");
+  return [...db.careRelationships]
+    .sort((a, b) => b.granted_at.localeCompare(a.granted_at))
+    .map((r) => ({
+      ...r,
+      patientName: getProfile(r.patient_id)?.full_name ?? "Unknown",
+      doctorName: getProfile(r.doctor_id)?.full_name ?? "Unknown",
+      active: !r.revoked_at && new Date(r.expires_at).getTime() > Date.now(),
+    }));
+}
+
+export function listAccessAudit(actor: Actor, opts: { limit?: number } = {}) {
+  assertAdmin(actor);
+  auditAdmin(actor, "audit:list");
+  return db.accessAudit.slice(0, opts.limit ?? 300).map((row) => ({
+    ...row,
+    actorName: getProfile(row.actor_id)?.full_name ?? "Unknown",
+    patientName: getProfile(row.patient_id)?.full_name ?? "Unknown",
+  }));
+}
+
+/** Self-transparency: the admin's own recent reads. Not itself audited —
+ *  logging a read of the activity log would just chase its own tail. */
+export function recentAdminActivity(actor: Actor, limit = 10) {
+  assertAdmin(actor);
+  return db.adminAudit.slice(0, limit);
 }
 
 // ── Notifications: mocked by default, logged so the demo can show them ──

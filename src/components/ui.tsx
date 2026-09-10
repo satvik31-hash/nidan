@@ -187,6 +187,38 @@ export function Divider({ className }: { className?: string }) {
   return <hr className={cn("border-0 border-t border-[var(--color-line)]", className)} />;
 }
 
+// ── Table primitives — styling only, no logic. Used by the admin portal's
+//    list pages, which is the first place this app needs a plain data grid. ──
+export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("overflow-x-auto", className)}>
+      <table className="w-full text-sm border-collapse">{children}</table>
+    </div>
+  );
+}
+
+export function Tr({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <tr className={cn("transition-colors hover:bg-[var(--color-paper)]", className)}>{children}</tr>
+  );
+}
+
+export function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th className={cn("text-left font-medium text-xs text-[var(--color-ink-3)] uppercase tracking-wide px-3 py-2 border-b border-[var(--color-line)]", className)}>
+      {children}
+    </th>
+  );
+}
+
+export function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <td className={cn("px-3 py-2.5 border-b border-[var(--color-line)] align-middle", className)}>
+      {children}
+    </td>
+  );
+}
+
 export function KeyValue({ k, v }: { k: string; v: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5 border-b border-[var(--color-line)] last:border-0">

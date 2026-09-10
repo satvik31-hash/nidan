@@ -44,7 +44,8 @@ from (values
   ('c1000000-0000-4000-8000-000000000002'::uuid,'ramesh.patil@example.in'),
   ('c1000000-0000-4000-8000-000000000003'::uuid,'aarav.sharma@example.in'),
   ('c1000000-0000-4000-8000-000000000004'::uuid,'fatima.shaikh@example.in'),
-  ('c1000000-0000-4000-8000-000000000005'::uuid,'joseph.dsouza@example.in')
+  ('c1000000-0000-4000-8000-000000000005'::uuid,'joseph.dsouza@example.in'),
+  ('e1000000-0000-4000-8000-000000000001'::uuid,'meera.kulkarni@nidan.in')
 ) as v(id, email)
 on conflict (id) do nothing;
 
@@ -61,7 +62,8 @@ insert into profiles (id, role, full_name, phone, email, preferred_locale) value
   ('c1000000-0000-4000-8000-000000000002','patient','Ramesh Patil','+919011220002','ramesh.patil@example.in','en'),
   ('c1000000-0000-4000-8000-000000000003','patient','Aarav Sharma','+919011220003','aarav.sharma@example.in','en'),
   ('c1000000-0000-4000-8000-000000000004','patient','Fatima Shaikh','+919011220004','fatima.shaikh@example.in','hi'),
-  ('c1000000-0000-4000-8000-000000000005','patient','Joseph D''Souza','+919011220005','joseph.dsouza@example.in','te');
+  ('c1000000-0000-4000-8000-000000000005','patient','Joseph D''Souza','+919011220005','joseph.dsouza@example.in','te'),
+  ('e1000000-0000-4000-8000-000000000001','admin','Meera Kulkarni',null,'meera.kulkarni@nidan.in','en');
 
 insert into doctors (id, registration_no, hpr_id, qualifications, specialization_id, sub_specialty, experience_years, languages, bio, consultation_fee, verified_at) values
   ('d1000000-0000-4000-8000-000000000001','MMC-2009-44127','HPR-2291004411','{MBBS,"MD (General Medicine)"}',1,'Diabetology',15,'{en,hi,mr}','Consultant physician with a diabetes and hypertension practice.',600,now()),

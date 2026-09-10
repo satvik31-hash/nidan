@@ -56,6 +56,20 @@ export async function doctorSignIn(_prev: unknown, formData: FormData) {
   redirect("/doctor");
 }
 
+export async function adminSignIn(_prev: unknown, formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const profile = db.profiles.find((p) => p.email === email && p.role === "admin");
+  if (!profile || password !== "demo1234") {
+    return { ok: false as const, error: "Those details did not match a registered administrator." };
+  }
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, profile.id, {
+    httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 12,
+  });
+  redirect("/admin");
+}
+
 export async function signOut() {
   const jar = await cookies();
   jar.delete(SESSION_COOKIE);

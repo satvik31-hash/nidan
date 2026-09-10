@@ -272,3 +272,39 @@ export async function structureSymptoms(text: string): Promise<StructuredSymptom
     };
   }
 }
+
+// ── 5 · Voice command matching (any signed-in role) ───────────
+// The voice assistant only ever navigates — it never writes to the record.
+// This picks the best-matching destination from a small, fixed menu of
+// commands; it can never return an id outside that menu, so it can never
+// send the assistant somewhere that wasn't already a legitimate part of the
+// app's own navigation.
+export interface VoiceMatch {
+  commandId: string | null;
+  source: "claude" | "offline";
+}
+
+export async function interpretVoiceCommand(
+  transcript: string,
+  commands: { id: string; label: string; keywords: string[] }[],
+): Promise<VoiceMatch> {
+  try {
+    const raw = await ask(
+      "You choose one destination from a fixed menu for a voice-controlled app. Given a spoken transcript and a list of commands (id, label, keywords), reply with JSON only: {\"commandId\": string|null}. Pick the single best-matching id, or null if nothing matches well. Never invent an id that is not in the list.",
+      JSON.stringify({ transcript, commands: commands.map(({ id, label, keywords }) => ({ id, label, keywords })) }),
+      `voice:${transcript.toLowerCase().trim()}`,
+    );
+    const parsed = JSON.parse(raw) as { commandId: string | null };
+    const valid = parsed.commandId && commands.some((c) => c.id === parsed.commandId) ? parsed.commandId : null;
+    return { commandId: valid, source: "claude" };
+  } catch {
+    const needle = transcript.toLowerCase();
+    let best: { id: string; score: number } | null = null;
+    for (const c of commands) {
+      const score = c.keywords.reduce((n, k) => n + (needle.includes(k.toLowerCase()) ? 1 : 0), 0)
+        + (needle.includes(c.label.toLowerCase()) ? 2 : 0);
+      if (score > 0 && (!best || score > best.score)) best = { id: c.id, score };
+    }
+    return { commandId: best?.id ?? null, source: "offline" };
+  }
+}

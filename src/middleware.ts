@@ -9,8 +9,15 @@ const SESSION_COOKIE = "nidan_session";
 
 // Deterministic prefixes from the seed. In production, read `role` from the
 // verified JWT claim rather than inferring it from the subject.
-const roleOf = (id: string): "patient" | "doctor" | null =>
-  id.startsWith("d1000000") ? "doctor" : id.startsWith("c1000000") ? "patient" : null;
+const roleOf = (id: string): "patient" | "doctor" | "admin" | null =>
+  id.startsWith("d1000000") ? "doctor"
+    : id.startsWith("c1000000") ? "patient"
+    : id.startsWith("e1000000") ? "admin"
+    : null;
+
+const HOME: Record<"patient" | "doctor" | "admin", string> = {
+  patient: "/patient", doctor: "/doctor", admin: "/admin",
+};
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -19,23 +26,22 @@ export function middleware(req: NextRequest) {
 
   const needsPatient = pathname.startsWith("/patient");
   const needsDoctor = pathname.startsWith("/doctor");
-  if (!needsPatient && !needsDoctor) return NextResponse.next();
+  const needsAdmin = pathname.startsWith("/admin");
+  if (!needsPatient && !needsDoctor && !needsAdmin) return NextResponse.next();
 
   if (!role) {
     const url = req.nextUrl.clone();
-    url.pathname = needsDoctor ? "/login/doctor" : "/login/patient";
+    url.pathname = needsDoctor ? "/login/doctor" : needsAdmin ? "/login/admin" : "/login/patient";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
-  if (needsPatient && role !== "patient") {
-    return NextResponse.redirect(new URL("/doctor", req.url));
-  }
-  if (needsDoctor && role !== "doctor") {
-    return NextResponse.redirect(new URL("/patient", req.url));
+  const needsRole = needsPatient ? "patient" : needsDoctor ? "doctor" : "admin";
+  if (role !== needsRole) {
+    return NextResponse.redirect(new URL(HOME[role], req.url));
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/patient/:path*", "/doctor/:path*"],
+  matcher: ["/patient/:path*", "/doctor/:path*", "/admin/:path*"],
 };

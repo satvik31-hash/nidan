@@ -17,6 +17,7 @@ import { addIstDays, istDay, istInstant } from "@/lib/tz";
 const H = (n: number) => `a1000000-0000-4000-8000-00000000000${n}`;
 const D = (n: number) => `d1000000-0000-4000-8000-00000000000${n}`;
 const P = (n: number) => `c1000000-0000-4000-8000-00000000000${n}`;
+const A = (n: number) => `e1000000-0000-4000-8000-00000000000${n}`;
 
 /** Stable pseudo-random: same input, same output, forever. */
 function rand(seed: number): number {
@@ -81,6 +82,15 @@ const patientSeed: [number, string, string, string, string, Patient["sex"], Pati
   [5, "Joseph D'Souza", "joseph.dsouza@example.in", "+919011220005", "1982-06-30", "male", "O-", 176, "9 Mount Villa, Camp", "411001", "registered", "12345678901238", "te"],
 ];
 
+/** The one seeded platform administrator — a company-wide, cross-hospital
+ *  oversight role, not a hospital-side account. */
+export const adminProfiles: Profile[] = [
+  {
+    id: A(1), role: "admin", full_name: "Meera Kulkarni",
+    phone: null, email: "meera.kulkarni@nidan.in", avatar_path: null, preferred_locale: "en",
+  },
+];
+
 export const profiles: Profile[] = [
   ...doctorSeed.map(([n, name, email]) => ({
     id: D(n), role: "doctor" as const, full_name: name,
@@ -90,6 +100,7 @@ export const profiles: Profile[] = [
     id: P(n), role: "patient" as const, full_name: name,
     phone, email, avatar_path: null, preferred_locale: locale,
   })),
+  ...adminProfiles,
 ];
 
 export const doctors: Doctor[] = doctorSeed.map(
@@ -589,4 +600,4 @@ export const careRelationships: CareRelationship[] = [
   },
 ];
 
-export const ids = { H, D, P };
+export const ids = { H, D, P, A };

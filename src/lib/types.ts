@@ -477,6 +477,19 @@ export interface AccessAuditRow {
   at: string;
 }
 
+/** A separate trail from AccessAuditRow: this logs an administrator's own
+ *  platform-wide reads (e.g. "listed all patients"), not a clinician
+ *  viewing one specific patient's record. Kept separate so a patient's
+ *  "who has seen my records" view never shows a company-wide aggregate
+ *  query as if it were about their record. */
+export interface AdminAuditRow {
+  id: number;
+  actor_id: string;
+  actor_name: string;
+  resource: string;
+  at: string;
+}
+
 export interface AccessRequest {
   id: string;
   patient_id: string;

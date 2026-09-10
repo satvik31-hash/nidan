@@ -3,33 +3,36 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertTriangle, FileText, LayoutGrid, LogOut, Search, Stethoscope, User } from "lucide-react";
+import {
+  Building2, CalendarDays, LayoutGrid, LogOut, Receipt, Search, ShieldCheck, Stethoscope, Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/doctor/command-palette";
 import { VoiceAssistant } from "@/components/voice-assistant";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { doctorCommands } from "@/lib/commands";
+import { adminCommands } from "@/lib/commands";
 
-// The doctor console is dense, fast and information-first — same tokens as
-// the patient app, different density. One step smaller type, tighter rows.
+// Company-wide oversight, not a clinical surface — same chrome tokens as the
+// doctor console (this is the other role that lives at that density), but
+// nothing here edits a record.
 
 const NAV = [
-  { href: "/doctor", label: "Today", icon: LayoutGrid, exact: true },
-  { href: "/doctor/lookup", label: "Patient lookup", icon: Search },
-  { href: "/doctor/profile", label: "My profile", icon: User },
+  { href: "/admin", label: "Overview", icon: LayoutGrid, exact: true },
+  { href: "/admin/patients", label: "Patients", icon: Users },
+  { href: "/admin/doctors", label: "Doctors", icon: Stethoscope },
+  { href: "/admin/hospitals", label: "Hospitals", icon: Building2 },
+  { href: "/admin/appointments", label: "Appointments", icon: CalendarDays },
+  { href: "/admin/billing", label: "Billing", icon: Receipt },
+  { href: "/admin/audit", label: "Audit log", icon: ShieldCheck },
 ];
 
-export function DoctorShell({
+export function AdminShell({
   user, children,
-}: {
-  user: { name: string; speciality: string; initials: string; verified: boolean };
-  children: React.ReactNode;
-}) {
+}: { user: { name: string; initials: string }; children: React.ReactNode }) {
   const path = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const router = useRouter();
 
-  // ⌘K. Doctors are keyboard users.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -45,14 +48,14 @@ export function DoctorShell({
     <div className="min-h-dvh text-[0.9375rem]">
       <header className="sticky top-0 z-20 bg-[var(--color-chrome)] text-[var(--color-chrome-ink)]">
         <div className="flex items-center gap-4 px-4 sm:px-6 h-14">
-          <Link href="/doctor" className="font-bold tracking-tight">
+          <Link href="/admin" className="font-bold tracking-tight">
             Ni<span className="text-[var(--color-brand)]">dan</span>
             <span className="ml-2 text-[0.625rem] uppercase tracking-[0.14em] opacity-60">
-              console
+              administration
             </span>
           </Link>
 
-          <nav className="hidden sm:flex gap-1 ml-4">
+          <nav className="hidden lg:flex gap-1 ml-4">
             {NAV.map(({ href, label, icon: Icon, exact }) => {
               const active = exact ? path === href : path.startsWith(href);
               return (
@@ -89,37 +92,26 @@ export function DoctorShell({
             <Search size={15} />
           </button>
 
-          <Link
-            href="/scan"
-            className="flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-[6px] border border-[var(--color-critical)] text-[var(--color-critical)] text-xs shrink-0"
-            title="Open an emergency card by QR token"
-          >
-            <AlertTriangle size={13} /> <span className="hidden sm:inline">Break-glass</span>
-          </Link>
-
           <ThemeToggle tone="chrome" />
 
           <div className="flex items-center gap-2">
-            <span className="hidden lg:block text-right leading-tight">
+            <span className="hidden sm:block text-right leading-tight">
               <span className="block text-sm font-medium">{user.name}</span>
-              <span className="block text-[0.6875rem] opacity-60">
-                {user.speciality}
-                {!user.verified && " · unverified"}
-              </span>
+              <span className="block text-[0.6875rem] opacity-60">Administrator</span>
             </span>
-            <span className="w-8 h-8 rounded-full bg-white/15 grid place-items-center text-xs font-semibold shrink-0">
+            <span className="w-8 h-8 rounded-full bg-white/15 grid place-items-center text-xs font-semibold">
               {user.initials}
             </span>
           </div>
 
           <form action="/api/signout" method="post">
-            <button className="grid place-items-center w-8 h-8 rounded-[6px] opacity-70 hover:opacity-100 shrink-0" title="Log out">
+            <button className="grid place-items-center w-8 h-8 rounded-[6px] opacity-70 hover:opacity-100" title="Log out">
               <LogOut size={16} />
             </button>
           </form>
         </div>
 
-        <nav className="flex sm:hidden gap-1 px-4 pb-2 overflow-x-auto">
+        <nav className="flex lg:hidden gap-1 px-4 pb-2 overflow-x-auto">
           {NAV.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? path === href : path.startsWith(href);
             return (
@@ -139,40 +131,21 @@ export function DoctorShell({
         </nav>
       </header>
 
-      {/* An unverified doctor can log in and complete their profile but cannot
-          open a patient record. A real trust control, shown plainly. */}
-      {!user.verified && (
-        <div className="bg-[var(--color-warning-soft)] text-[var(--color-warning)] px-4 sm:px-6 py-2 text-sm flex items-center gap-2">
-          <Stethoscope size={15} />
-          Your medical registration is pending verification. You can complete your
-          profile, but patient records stay locked until an administrator verifies you.
-        </div>
-      )}
+      <div className="bg-[var(--color-brand-soft)] text-[var(--color-brand-ink)] px-4 sm:px-6 py-2 text-xs">
+        Company data view — every read on this portal is logged to the admin activity trail.
+      </div>
 
       <main className="px-4 sm:px-6 py-5">{children}</main>
 
       {paletteOpen && (
         <CommandPalette
-          staticHits={doctorCommands}
-          placeholder="Jump to a patient by name, MRN, ABHA or phone…"
-          search={(q) =>
-            fetch(`/api/patients?q=${encodeURIComponent(q)}`)
-              .then((r) => r.json())
-              .then((j: { results: { id: string; full_name: string; mrn: string; age: number }[] }) =>
-                j.results.map((p) => ({
-                  label: p.full_name,
-                  sub: `${p.mrn} · ${p.age} y`,
-                  href: `/doctor/patient/${p.id}`,
-                  icon: FileText,
-                })),
-              )
-          }
+          staticHits={adminCommands}
           onClose={() => setPaletteOpen(false)}
           onNavigate={(href) => { setPaletteOpen(false); router.push(href); }}
         />
       )}
 
-      <VoiceAssistant commands={doctorCommands} />
+      <VoiceAssistant commands={adminCommands} />
     </div>
   );
 }

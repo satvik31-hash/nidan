@@ -30,10 +30,12 @@ export async function getSession(): Promise<Session | null> {
   return { userId: profile.id, role: profile.role, name: profile.full_name };
 }
 
+const HOME: Record<UserRole, string> = { patient: "/patient", doctor: "/doctor", admin: "/admin" };
+
 export async function requireSession(role?: UserRole): Promise<Session> {
   const s = await getSession();
   if (!s) redirect("/");
-  if (role && s.role !== role) redirect(s.role === "doctor" ? "/doctor" : "/patient");
+  if (role && s.role !== role) redirect(HOME[s.role]);
   return s;
 }
 
@@ -44,6 +46,11 @@ export async function requirePatient() {
 
 export async function requireDoctor() {
   const s = await requireSession("doctor");
+  return s;
+}
+
+export async function requireAdmin() {
+  const s = await requireSession("admin");
   return s;
 }
 

@@ -90,6 +90,27 @@ other.
 
 `MOCK_DB=true` is the demo-day parachute. Never delete the mock store.
 
+### 8. Administration is company-wide but read-only; the voice assistant only navigates
+
+`/admin` is a third surface — the platform operator's oversight portal, not a
+hospital-side account. `assertAccess()` already let an admin actor through
+unconditionally; the new `listAll*`/`platformStats` functions in
+`src/lib/db/store.ts` are what actually use that, each gated by `assertAdmin()`
+and logged to a **separate** `adminAudit` trail (not `access_audit` — a
+platform-wide read is not "a clinician viewed this patient's record", and must
+not appear on a patient's own "who has seen my records" page). Per-patient
+admin detail reuses the same gated `*For(actor, patientId)` functions the
+doctor console uses — there is no parallel, less-gated read path. Nothing
+under `/admin` writes to a clinical record.
+
+`src/components/voice-assistant.tsx` and the 5th function in `src/lib/ai.ts`
+(`interpretVoiceCommand`) are navigation-only: they pick a destination from a
+small, fixed menu (`src/lib/commands.ts`) and never anything else — the
+Claude-path result is validated against that menu before use, so it cannot
+invent a destination. It never writes to a record. It is reached only through
+`src/app/actions/voice.ts`, a server action — never import `src/lib/ai.ts`
+directly into a `"use client"` file, since it holds `ANTHROPIC_API_KEY`.
+
 ---
 
 ## Conventions
@@ -210,6 +231,7 @@ letting the site show something that no longer exists.
 | Patient | `+919011220005` · OTP `123456` (Joseph D'Souza — opens in Telugu) |
 | Doctor | `anita.deshmukh@nidan.in` · `demo1234` (has today's clinic) |
 | Doctor | `priya.nayak@nidan.in` · `demo1234` (no relationships — request-access flow) |
+| Admin | `meera.kulkarni@nidan.in` · `demo1234` (company-wide oversight, `/admin`) |
 | Public | `/e/EMG-8f2a91c4d7` |
 
 `GET /api/demo/reset` restores an identical clean state.

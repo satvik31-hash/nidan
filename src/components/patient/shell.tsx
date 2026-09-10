@@ -10,8 +10,10 @@ import {
 import { cn } from "@/lib/utils";
 import { setLocale } from "@/app/actions/auth";
 import type { Locale, Messages } from "@/lib/i18n";
-import { LOCALE_NAMES } from "@/lib/i18n";
+import { LOCALE_NAMES, LOCALE_TAGS } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { VoiceAssistant } from "@/components/voice-assistant";
+import { patientCommands } from "@/lib/commands";
 
 export interface NavUser {
   name: string;
@@ -202,6 +204,8 @@ export function PatientShell({
           </div>
         </div>
       )}
+
+      <VoiceAssistant commands={patientCommands} lang={LOCALE_TAGS[locale]} />
     </div>
   );
 }
