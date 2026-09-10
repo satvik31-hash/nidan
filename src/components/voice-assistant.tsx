@@ -6,10 +6,13 @@ import { Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { interpretVoiceCommand } from "@/app/actions/voice";
 import { AiLabel } from "@/components/ui";
-import type { CommandEntry } from "@/lib/commands";
+import { signOutCommand, type CommandEntry } from "@/lib/commands";
+import { useVoiceTargetList } from "@/lib/voice-targets";
 
-// Navigation only, read-only — this never writes to the record. On no
-// confident match it says so and does nothing, rather than guessing.
+// Picks from a fixed global menu (navigation + sign-out) plus whatever the
+// current screen has explicitly registered via lib/voice-targets.tsx (e.g.
+// the booking wizard's hospital/doctor/time-slot lists) — never anything
+// outside that combined, explicit set. See AGENTS.md invariant 8.
 
 type SpeechResultEvent = { results: { 0: { transcript: string } }[] };
 type SR = {
@@ -22,6 +25,7 @@ type State = "idle" | "listening" | "thinking" | "result";
 
 export function VoiceAssistant({ commands, lang = "en-IN" }: { commands: CommandEntry[]; lang?: string }) {
   const router = useRouter();
+  const targets = useVoiceTargetList();
   const [state, setState] = useState<State>("idle");
   const [heard, setHeard] = useState("");
   const [message, setMessage] = useState("");
@@ -48,14 +52,37 @@ export function VoiceAssistant({ commands, lang = "en-IN" }: { commands: Command
       const transcript = e.results[0][0].transcript;
       setHeard(transcript);
       setState("thinking");
-      // Server Actions only accept plain, serializable data — strip each
-      // CommandEntry down to id/label/keywords before crossing the boundary
-      // (the icon is a React component and cannot be serialized).
-      const menu = commands.map(({ id, label, keywords }) => ({ id, label, keywords }));
+
+      const globalCommands = [...commands, signOutCommand];
+      // Dynamic, on-screen options first, so a page-local option (e.g. a
+      // hospital named similarly to a global command) still wins on its own
+      // screen — one combined match, not a two-phase fallback, so saying
+      // "logout" mid-booking still works rather than being shadowed.
+      const menu = [
+        ...targets.map(({ id, label, keywords }) => ({ id, label, keywords })),
+        ...globalCommands.map(({ id, label, keywords }) => ({ id, label, keywords })),
+      ];
+
       interpretVoiceCommand(transcript, menu).then((match) => {
         setSource(match.source);
-        const cmd = commands.find((c) => c.id === match.commandId);
-        if (cmd) {
+        const target = targets.find((t) => t.id === match.commandId);
+        const cmd = globalCommands.find((c) => c.id === match.commandId);
+
+        if (target) {
+          setMessage(`Selecting ${target.label}.`);
+          setState("result");
+          speak(`Selecting ${target.label}`);
+          setTimeout(() => target.onSelect(), 350);
+        } else if (cmd?.id === signOutCommand.id) {
+          setMessage("Logging out.");
+          setState("result");
+          speak("Logging out");
+          setTimeout(() => {
+            fetch("/api/signout", { method: "POST" }).finally(() => {
+              window.location.href = "/";
+            });
+          }, 350);
+        } else if (cmd) {
           setMessage(`Opening ${cmd.label}.`);
           setState("result");
           speak(`Opening ${cmd.label}`);
@@ -97,7 +124,7 @@ export function VoiceAssistant({ commands, lang = "en-IN" }: { commands: Command
       )}
       <button
         onClick={listen}
-        title="Voice assistant — say a place to go"
+        title="Voice assistant — say a place to go, or an option on screen"
         aria-label="Voice assistant"
         className={cn(
           "w-12 h-12 rounded-full grid place-items-center shadow-[var(--shadow-card)] border border-transparent transition-colors",

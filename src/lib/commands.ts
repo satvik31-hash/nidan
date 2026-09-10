@@ -5,7 +5,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity, Building2, CalendarDays, CalendarPlus,
-  CircleUser, FileHeart, LayoutGrid, LifeBuoy, Receipt, Search,
+  CircleUser, FileHeart, LayoutGrid, LifeBuoy, LogOut, Receipt, Search,
   ShieldCheck, Stethoscope, User, Users,
 } from "lucide-react";
 
@@ -46,3 +46,16 @@ export const adminCommands: CommandEntry[] = [
   { id: "admin-billing", label: "Billing", keywords: ["billing", "bills", "revenue"], href: "/admin/billing", icon: Receipt },
   { id: "admin-audit", label: "Audit log", keywords: ["audit", "access log", "who accessed"], href: "/admin/audit", icon: ShieldCheck },
 ];
+
+// Not part of any role's array above on purpose — it never appears in the
+// ⌘K command palette (CommandPalette only ever receives one of the arrays
+// above), only in the voice assistant, which merges it in for every role.
+// href is a sentinel the voice assistant special-cases rather than a real
+// route to navigate to.
+export const signOutCommand: CommandEntry = {
+  id: "sign-out",
+  label: "Log out",
+  keywords: ["logout", "log out", "sign out", "signout", "लॉग आउट", "లాగ్ అవుట్"],
+  href: "#signout",
+  icon: LogOut,
+};

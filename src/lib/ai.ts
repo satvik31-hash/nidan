@@ -274,15 +274,22 @@ export async function structureSymptoms(text: string): Promise<StructuredSymptom
 }
 
 // ── 5 · Voice command matching (any signed-in role) ───────────
-// The voice assistant only ever navigates — it never writes to the record.
-// This picks the best-matching destination from a small, fixed menu of
-// commands; it can never return an id outside that menu, so it can never
-// send the assistant somewhere that wasn't already a legitimate part of the
-// app's own navigation.
+// Picks the best-matching option from a menu handed to it — a fixed global
+// list of destinations, an in-page list of selectable options, or both
+// merged together (see src/components/voice-assistant.tsx). It can never
+// return an id outside that menu, so it can never invent a destination or
+// an action that wasn't already offered to it.
 export interface VoiceMatch {
   commandId: string | null;
   source: "claude" | "offline";
 }
+
+const normalize = (s: string) => s.toLowerCase().trim();
+
+// Splits on anything that isn't a letter/digit in Latin, Devanagari or
+// Telugu script — good enough for the three locales this app supports.
+const tokenize = (s: string): string[] =>
+  normalize(s).split(/[^a-z0-9ऀ-ॿఀ-౿]+/).filter((w) => w.length > 1);
 
 export async function interpretVoiceCommand(
   transcript: string,
@@ -290,7 +297,7 @@ export async function interpretVoiceCommand(
 ): Promise<VoiceMatch> {
   try {
     const raw = await ask(
-      "You choose one destination from a fixed menu for a voice-controlled app. Given a spoken transcript and a list of commands (id, label, keywords), reply with JSON only: {\"commandId\": string|null}. Pick the single best-matching id, or null if nothing matches well. Never invent an id that is not in the list.",
+      "You choose one option from a menu for a voice-controlled app — this may be a page to navigate to, or an option on the visitor's current screen (e.g. a hospital, doctor or time slot to select). Given a spoken transcript and the menu (id, label, keywords), reply with JSON only: {\"commandId\": string|null}. Pick the single best-matching id, or null if nothing matches well. Never invent an id that is not in the list.",
       JSON.stringify({ transcript, commands: commands.map(({ id, label, keywords }) => ({ id, label, keywords })) }),
       `voice:${transcript.toLowerCase().trim()}`,
     );
@@ -298,11 +305,26 @@ export async function interpretVoiceCommand(
     const valid = parsed.commandId && commands.some((c) => c.id === parsed.commandId) ? parsed.commandId : null;
     return { commandId: valid, source: "claude" };
   } catch {
-    const needle = transcript.toLowerCase();
+    // A short utterance ("Sanjeevani") naming a long option ("Sanjeevani
+    // Multispeciality Hospital") is the common case for in-page targets —
+    // plain "does the transcript contain the keyword" fails whenever the
+    // keyword is longer than what was actually said. Score three ways and
+    // take whichever is strongest: whole-phrase containment in either
+    // direction, keyword containment in either direction, and shared words.
+    const needle = normalize(transcript);
+    const needleWords = new Set(tokenize(transcript));
     let best: { id: string; score: number } | null = null;
     for (const c of commands) {
-      const score = c.keywords.reduce((n, k) => n + (needle.includes(k.toLowerCase()) ? 1 : 0), 0)
-        + (needle.includes(c.label.toLowerCase()) ? 2 : 0);
+      const phrase = normalize(c.label);
+      let score = 0;
+      if (phrase && (needle.includes(phrase) || phrase.includes(needle))) score += 3;
+      for (const k of c.keywords) {
+        const kn = normalize(k);
+        if (kn && (needle.includes(kn) || kn.includes(needle))) score += 2;
+      }
+      for (const w of tokenize(`${c.label} ${c.keywords.join(" ")}`)) {
+        if (needleWords.has(w)) score += 1;
+      }
       if (score > 0 && (!best || score > best.score)) best = { id: c.id, score };
     }
     return { commandId: best?.id ?? null, source: "offline" };

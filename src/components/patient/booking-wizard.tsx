@@ -8,6 +8,7 @@ import { fmtDate, fmtTime, rupees } from "@/lib/utils";
 import { addIstDays, istDay, istHour } from "@/lib/tz";
 import { interpolate } from "@/lib/i18n";
 import { COMMON_COMPLAINT_CHIPS } from "@/lib/clinical";
+import { useVoiceTargets, type VoiceTarget } from "@/lib/voice-targets";
 import { AlertTriangle, Check, MapPin, Navigation, Sparkles, Star } from "lucide-react";
 
 // A four-step wizard with a persistent summary rail. Each step narrows the
@@ -22,6 +23,7 @@ interface Doctor {
 interface Slot { start: string; end: string; taken: boolean; past: boolean }
 
 const STEPS = ["Hospital", "Doctor", "Date & time", "Confirm"];
+const EMPTY_TARGETS: VoiceTarget[] = [];
 
 export function BookingWizard({
   hospitals, doctors, specializations, preselect, m,
@@ -114,6 +116,58 @@ export function BookingWizard({
           .then((j) => setSlots(j.slots ?? []));
       }
     });
+
+  // Voice targets: only the step currently on screen is ever selectable by
+  // voice — each list below is [] when its step isn't active, and the
+  // onSelect for each is the exact same state transition the matching
+  // onClick already performs a few lines down. The confirm step's target
+  // calls the same submit() the manual Confirm button calls — not a
+  // separate, less-validated write path (see AGENTS.md invariant 8).
+  //
+  // Each list is memoized on the underlying ids (not just recomputed every
+  // render) — useVoiceTargets registers on every render its input array's
+  // *reference* changes, and `.map()` produces a new reference every render
+  // regardless of content, which otherwise churns the registry continuously.
+  const hospitalTargets = useMemo(
+    () => visibleHospitals.map((h) => ({
+      id: h.id, label: h.name, keywords: [h.name, h.city].map((s) => s.toLowerCase()),
+      onSelect: () => { setHospitalId(h.id); setStep(1); },
+    })),
+    [visibleHospitals],
+  );
+  const doctorTargets = useMemo(
+    () => visibleDoctors.map((d) => ({
+      id: d.id, label: d.full_name, keywords: [d.full_name.toLowerCase()],
+      onSelect: () => { setDoctorId(d.id); setStep(2); },
+    })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hospitalId, specId, doctors],
+  );
+  const slotTargets = useMemo(
+    () => (slots ?? [])
+      .filter((s) => !s.taken && !s.past)
+      .map((s) => ({
+        id: s.start, label: fmtTime(s.start), keywords: [fmtTime(s.start).toLowerCase()],
+        onSelect: () => setSlot(s),
+      })),
+    [slots],
+  );
+  const confirmTargets = useMemo(
+    () => (slot && doctor && hospital
+      ? [{
+          id: "confirm-booking", label: m.confirmBooking,
+          keywords: ["confirm", "book it", "confirm booking", m.confirmBooking.toLowerCase()],
+          onSelect: submit,
+        }]
+      : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [slot, doctor, hospital],
+  );
+
+  useVoiceTargets("booking-hospital", step === 0 ? hospitalTargets : EMPTY_TARGETS);
+  useVoiceTargets("booking-doctor", step === 1 ? doctorTargets : EMPTY_TARGETS);
+  useVoiceTargets("booking-slot", step === 2 ? slotTargets : EMPTY_TARGETS);
+  useVoiceTargets("booking-confirm", step === 3 ? confirmTargets : EMPTY_TARGETS);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_260px] items-start">

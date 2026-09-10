@@ -90,7 +90,7 @@ other.
 
 `MOCK_DB=true` is the demo-day parachute. Never delete the mock store.
 
-### 8. Administration is company-wide but read-only; the voice assistant only navigates
+### 8. Administration is company-wide but read-only; the voice assistant only acts on what's explicitly offered to it
 
 `/admin` is a third surface — the platform operator's oversight portal, not a
 hospital-side account. `assertAccess()` already let an admin actor through
@@ -103,13 +103,29 @@ admin detail reuses the same gated `*For(actor, patientId)` functions the
 doctor console uses — there is no parallel, less-gated read path. Nothing
 under `/admin` writes to a clinical record.
 
-`src/components/voice-assistant.tsx` and the 5th function in `src/lib/ai.ts`
-(`interpretVoiceCommand`) are navigation-only: they pick a destination from a
-small, fixed menu (`src/lib/commands.ts`) and never anything else — the
-Claude-path result is validated against that menu before use, so it cannot
-invent a destination. It never writes to a record. It is reached only through
-`src/app/actions/voice.ts`, a server action — never import `src/lib/ai.ts`
-directly into a `"use client"` file, since it holds `ANTHROPIC_API_KEY`.
+`src/components/voice-assistant.tsx` picks from a small, fixed global menu
+(`src/lib/commands.ts` — navigation, plus sign-out) **and** whatever the
+current screen has explicitly registered via `src/lib/voice-targets.tsx`
+(e.g. the booking wizard's hospital/doctor/time-slot lists, one `useVoiceTargets`
+call per step) — never anything outside that combined, explicit set. The
+Claude-path result from `interpretVoiceCommand` (the 5th function in
+`src/lib/ai.ts`) is always validated against that set before use, so it can
+never invent a destination or an action. A page opts in per step; nothing is
+voice-selectable unless something explicitly registered it as a target.
+
+It still never writes to a clinical record on its own initiative. The one
+deliberate exception: on the booking wizard's confirm step, voice can say
+"confirm"/"book it" to trigger the wizard's own `submit()` — the exact same
+function the manual Confirm button calls, with the exact same server-side
+validation in `book()` (`src/app/actions/patient.ts`). This is not a
+separate, looser write path for AI — it is the one human-reviewed write path,
+with voice as an alternate way to press the same button. Extending voice
+control to a new page means adding `useVoiceTargets` calls there, not adding
+a new way for the model to write.
+
+The assistant is reached only through `src/app/actions/voice.ts`, a server
+action — never import `src/lib/ai.ts` directly into a `"use client"` file,
+since it holds `ANTHROPIC_API_KEY`.
 
 ---
 

@@ -13,6 +13,7 @@ import type { Locale, Messages } from "@/lib/i18n";
 import { LOCALE_NAMES, LOCALE_TAGS } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { VoiceAssistant } from "@/components/voice-assistant";
+import { VoiceTargetsProvider } from "@/lib/voice-targets";
 import { patientCommands } from "@/lib/commands";
 
 export interface NavUser {
@@ -42,6 +43,7 @@ export function PatientShell({
   const active = (href: string) => path === href || path.startsWith(href + "/");
 
   return (
+    <VoiceTargetsProvider>
     <div className="patient-surface min-h-dvh lg:grid lg:grid-cols-[260px_1fr]">
       {/* Persistent left sidebar on desktop */}
       <aside className="hidden lg:flex flex-col border-r border-[var(--color-line)] bg-[var(--color-surface)] sticky top-0 h-dvh">
@@ -223,6 +225,7 @@ export function PatientShell({
 
       <VoiceAssistant commands={patientCommands} lang={LOCALE_TAGS[locale]} />
     </div>
+    </VoiceTargetsProvider>
   );
 }
 
