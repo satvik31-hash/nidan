@@ -132,6 +132,7 @@
 
 html {
   font-size: calc(100% * var(--scale));
+  overflow-x: hidden;
 }
 
 body {
@@ -141,6 +142,12 @@ body {
   /* digits stack — vitals, bills, lab values, slot times */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  /* One overcrowded header row overflowing horizontally must never drag the
+     whole page sideways — a `position: sticky` header only pins on the
+     vertical axis, so a horizontal scroll takes it with it, and on a real
+     device (narrower than most emulators once the notch/safe-area is
+     subtracted) that reads as "half the screen went blank". */
+  overflow-x: hidden;
 }
 
 /* Minimum body size 16px on the patient app. Non-negotiable. */

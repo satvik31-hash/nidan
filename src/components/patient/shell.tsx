@@ -103,9 +103,15 @@ export function PatientShell({
 
             <div className="flex-1 sm:flex-none" />
 
-            <TextSizeControl label={messages.textSize} />
+            {/* Packing five controls plus the avatar into one row overflowed
+                on real phones once the safe-area insets ate into the width —
+                text size and language move into the mobile "More" sheet
+                below; theme stays here since it is one tap, always. */}
+            <div className="hidden sm:flex items-center gap-1">
+              <TextSizeControl label={messages.textSize} />
+              <LocaleSwitch current={locale} />
+            </div>
             <ThemeToggle />
-            <LocaleSwitch current={locale} />
 
             <div className="relative">
               <button
@@ -183,6 +189,16 @@ export function PatientShell({
               <span className="font-semibold">{messages.more}</span>
               <button onClick={() => setSheetOpen(false)} aria-label={messages.close}><X size={20} /></button>
             </div>
+
+            <div className="flex items-center justify-between gap-3 px-2 py-3 border-b border-[var(--color-line)]">
+              <span className="text-sm text-[var(--color-ink-2)]">{messages.language}</span>
+              <LocaleSwitch current={locale} />
+            </div>
+            <div className="flex items-center justify-between gap-3 px-2 py-3 border-b border-[var(--color-line)]">
+              <span className="text-sm text-[var(--color-ink-2)]">{messages.textSize}</span>
+              <TextSizeControl label={messages.textSize} />
+            </div>
+
             {NAV.concat({ href: "/patient/access", label: messages.whoHasSeen, icon: Search }).map(
               ({ href, label, icon: Icon }) => (
                 <Link
