@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Empty } from "@/components/ui";
 import { askAccess } from "@/app/actions/doctor";
 import { Lock, Search, Unlock } from "lucide-react";
+import { useVoiceTargets } from "@/lib/voice-targets";
 
 interface Hit {
   id: string; full_name: string; mrn: string; age: number; sex: string;
@@ -16,6 +18,7 @@ export function PatientSearch() {
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [requested, setRequested] = useState<Record<string, boolean>>({});
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     if (q.trim().length < 2) { setHits(null); return; }
@@ -28,6 +31,32 @@ export function PatientSearch() {
     }, 180);
     return () => { clearTimeout(timer); c.abort(); };
   }, [q]);
+
+  const requestAccess = (h: Hit) =>
+    start(async () => {
+      await askAccess(h.id);
+      setRequested((r) => ({ ...r, [h.id]: true }));
+    });
+
+  // Mirrors the booking wizard's confirm-step precedent (see AGENTS.md
+  // invariant 8): voice triggers the exact same handler the on-screen button
+  // calls — "Open record" navigates, "Request access" calls the same
+  // askAccess() — never a separate or looser path. A hit already waiting on
+  // patient approval isn't offered again; there's nothing left to select.
+  const voiceTargets = useMemo(
+    () =>
+      (hits ?? [])
+        .filter((h) => !requested[h.id])
+        .map((h) => ({
+          id: h.id,
+          label: h.full_name,
+          keywords: [h.full_name.toLowerCase(), h.mrn.toLowerCase()],
+          onSelect: () => (h.hasAccess ? router.push(`/doctor/patient/${h.id}`) : requestAccess(h)),
+        })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hits, requested],
+  );
+  useVoiceTargets("doctor-patient-search", voiceTargets);
 
   return (
     <div className="space-y-4">
@@ -79,16 +108,7 @@ export function PatientSearch() {
               ) : (
                 <div className="flex items-center gap-2">
                   <Badge tone="neutral" icon={<Lock size={11} />}>no relationship</Badge>
-                  <Button
-                    size="sm"
-                    disabled={pending}
-                    onClick={() =>
-                      start(async () => {
-                        await askAccess(h.id);
-                        setRequested((r) => ({ ...r, [h.id]: true }));
-                      })
-                    }
-                  >
+                  <Button size="sm" disabled={pending} onClick={() => requestAccess(h)}>
                     Request access
                   </Button>
                 </div>

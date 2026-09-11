@@ -113,15 +113,22 @@ Claude-path result from `interpretVoiceCommand` (the 5th function in
 never invent a destination or an action. A page opts in per step; nothing is
 voice-selectable unless something explicitly registered it as a target.
 
-It still never writes to a clinical record on its own initiative. The one
-deliberate exception: on the booking wizard's confirm step, voice can say
-"confirm"/"book it" to trigger the wizard's own `submit()` — the exact same
-function the manual Confirm button calls, with the exact same server-side
-validation in `book()` (`src/app/actions/patient.ts`). This is not a
-separate, looser write path for AI — it is the one human-reviewed write path,
-with voice as an alternate way to press the same button. Extending voice
-control to a new page means adding `useVoiceTargets` calls there, not adding
-a new way for the model to write.
+It still never writes to a clinical record on its own initiative. The
+deliberate exceptions, each voice triggering the exact same handler the
+on-screen control already calls — never a separate or looser path for AI:
+
+- The booking wizard's confirm step: saying "confirm"/"book it" triggers the
+  wizard's own `submit()`, with the same server-side validation in `book()`
+  (`src/app/actions/patient.ts`) the manual Confirm button uses.
+- The doctor console's patient lookup (`src/components/doctor/patient-search.tsx`):
+  naming a search result either opens that record (plain navigation, only
+  offered when a care relationship already exists) or calls the same
+  `askAccess()` the "Request access" button does — it only asks the patient
+  to approve on their phone, it never grants access itself.
+
+Extending voice control to a new page means adding `useVoiceTargets` calls
+that point at an existing, human-reviewed handler there, not adding a new way
+for the model to write.
 
 The assistant is reached only through `src/app/actions/voice.ts`, a server
 action — never import `src/lib/ai.ts` directly into a `"use client"` file,

@@ -7,6 +7,7 @@ import { AlertTriangle, FileText, LayoutGrid, LogOut, Search, Stethoscope, User 
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/doctor/command-palette";
 import { VoiceAssistant } from "@/components/voice-assistant";
+import { VoiceTargetsProvider } from "@/lib/voice-targets";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { doctorCommands } from "@/lib/commands";
 
@@ -42,6 +43,7 @@ export function DoctorShell({
   }, []);
 
   return (
+    <VoiceTargetsProvider>
     <div className="min-h-dvh text-[0.9375rem]">
       <header className="sticky top-0 z-20 bg-[var(--color-chrome)] text-[var(--color-chrome-ink)]">
         <div className="flex items-center gap-4 px-4 sm:px-6 h-14">
@@ -174,5 +176,6 @@ export function DoctorShell({
 
       <VoiceAssistant commands={doctorCommands} />
     </div>
+    </VoiceTargetsProvider>
   );
 }
