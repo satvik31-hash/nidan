@@ -61,6 +61,7 @@ export function CaseSheetWorkspace({
   const [open, setOpen] = useState<number | null>(0);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [summary, setSummary] = useState<{ text: string; source: string } | null>(
     sheet.ai_summary ? { text: sheet.ai_summary, source: "offline" } : null,
   );
@@ -86,7 +87,8 @@ export function CaseSheetWorkspace({
       void id; void patient_id; void doctor_id; void hospital_id; void status; void created_at;
       autosave(sheet.id, body).then((r) => {
         setSaving(false);
-        if (r.ok) setSavedAt(new Date());
+        if (r.ok) { setSavedAt(new Date()); setActionError(null); }
+        else setActionError(r.error);
       });
     }, 2000);
     return () => clearInterval(t);
@@ -94,7 +96,9 @@ export function CaseSheetWorkspace({
 
   useEffect(() => {
     if (readOnly || !vitals) return;
-    const t = setTimeout(() => { void saveVitals(sheet.id, v); }, 1500);
+    const t = setTimeout(() => {
+      saveVitals(sheet.id, v).then((r) => { if (!r.ok) setActionError(r.error); });
+    }, 1500);
     return () => clearTimeout(t);
   }, [v, sheet.id, readOnly, vitals]);
 
@@ -192,6 +196,7 @@ export function CaseSheetWorkspace({
                     onClick={() => startTx(async () => {
                       const r = await amend(sheet.id);
                       if (r.ok) router.push(`/doctor/case/${r.id}`);
+                      else setActionError(r.error);
                     })}
                   >
                     Create amendment
@@ -220,6 +225,16 @@ export function CaseSheetWorkspace({
             </div>
             <span className="text-xs text-[var(--color-ink-3)] tabular-nums">{progress}% complete</span>
           </div>
+
+          {actionError && (
+            <div className="mt-2 flex items-center gap-2 rounded-[6px] bg-[var(--color-critical-soft)] text-[var(--color-critical)] px-3 py-2 text-sm">
+              <AlertTriangle size={14} className="shrink-0" />
+              <span className="flex-1">{actionError}</span>
+              <button onClick={() => setActionError(null)} className="text-xs underline shrink-0">
+                Dismiss
+              </button>
+            </div>
+          )}
 
           <SectionRail done={done} open={open} onJump={setOpen} />
         </div>
@@ -654,8 +669,9 @@ export function CaseSheetWorkspace({
                 key={p.name}
                 disabled={readOnly || pending}
                 onClick={() => startTx(async () => {
-                  await orderTests(sheet.id, p.tests.map((t) => ({ test_name: t, panel: p.name })));
-                  router.refresh();
+                  const r = await orderTests(sheet.id, p.tests.map((t) => ({ test_name: t, panel: p.name })));
+                  if (r.ok) { setActionError(null); router.refresh(); }
+                  else setActionError(r.error);
                 })}
                 className="pill hover:border-[var(--color-brand)] px-3 py-1.5"
               >

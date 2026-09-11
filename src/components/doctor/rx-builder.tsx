@@ -37,6 +37,7 @@ export function RxBuilder({
   const [items, setItems] = useState<Item[]>([]);
   const [q, setQ] = useState("");
   const [blocking, setBlocking] = useState<{ drug: Drug; warnings: DrugWarning[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
 
@@ -222,15 +223,25 @@ export function RxBuilder({
               disabled={pending}
               onClick={() =>
                 start(async () => {
-                  await prescribe(caseSheetId, items);
-                  setItems([]);
-                  router.refresh();
+                  const r = await prescribe(caseSheetId, items);
+                  if (r.ok) { setError(null); setItems([]); router.refresh(); }
+                  else setError(r.error);
                 })
               }
             >
               <Plus size={15} />
               {pending ? "Issuing…" : `Issue prescription (${items.length} drug${items.length === 1 ? "" : "s"})`}
             </Button>
+          )}
+
+          {error && (
+            <div className="mt-2 flex items-center gap-2 rounded-[6px] bg-[var(--color-critical-soft)] text-[var(--color-critical)] px-3 py-2 text-sm">
+              <AlertTriangle size={14} className="shrink-0" />
+              <span className="flex-1">{error}</span>
+              <button onClick={() => setError(null)} className="text-xs underline shrink-0">
+                Dismiss
+              </button>
+            </div>
           )}
           <p className="text-xs text-[var(--color-ink-3)] mt-2">
             Saving generates a PDF with letterhead, registration number, signature and

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireDoctor } from "@/lib/auth";
 import {
-  amendCaseSheet, breakGlass, caseSheet, db, documentsFor, finalizeCaseSheet,
+  AccessDenied, amendCaseSheet, breakGlass, caseSheet, db, documentsFor, finalizeCaseSheet,
   getProfile, issuePrescription, notifyPatient, orderInvestigations, patientHeader,
   recordVitals, requestAccess, saveCaseSheet, setAppointmentStatus, startConsultation,
   vitalsFor, caseSheetsFor, setAvailability, availabilityFor, InvalidAvailability,
@@ -11,6 +11,25 @@ import {
 } from "@/lib/db/store";
 import { summariseCase, synthesiseHistory } from "@/lib/ai";
 import type { CaseSheet, Vitals } from "@/lib/types";
+
+// A write can throw "No such case sheet" not because the sheet is missing,
+// but because this demo's in-memory store is per-server-instance: a case
+// sheet created a moment ago on one instance genuinely isn't in another's
+// memory yet. Turning that into an unhandled exception crashes the whole
+// page (Next.js's error boundary) instead of the one action that failed —
+// this maps it to a typed {ok:false} result every write action returns
+// instead, same shape autosave already used, so the form stays intact and
+// the doctor can just retry.
+function writeError(e: unknown): { ok: false; error: string } {
+  if (e instanceof AccessDenied) return { ok: false, error: "You don't have access to this record." };
+  const msg = e instanceof Error ? e.message : "Something went wrong.";
+  return {
+    ok: false,
+    error: msg === "No such case sheet"
+      ? "Could not save just now — please try again in a few seconds."
+      : msg,
+  };
+}
 
 export async function startConsult(appointmentId: string) {
   const s = await requireDoctor();
@@ -34,8 +53,12 @@ export async function autosave(id: string, patch: Partial<CaseSheet>) {
 
 export async function saveVitals(caseSheetId: string, v: Partial<Vitals>) {
   const s = await requireDoctor();
-  recordVitals(s.userId, caseSheetId, v);
-  return { ok: true as const };
+  try {
+    recordVitals(s.userId, caseSheetId, v);
+    return { ok: true as const };
+  } catch (e) {
+    return writeError(e);
+  }
 }
 
 export async function prescribe(
@@ -43,16 +66,24 @@ export async function prescribe(
   items: { drug_id: number | null; drug_text: string; dose: string; frequency: string; route: string; timing: string | null; duration_days: number | null; quantity: number | null; instructions: string | null }[],
 ) {
   const s = await requireDoctor();
-  const rx = issuePrescription(s.userId, caseSheetId, items);
-  revalidatePath(`/doctor/case/${caseSheetId}`);
-  return { ok: true as const, id: rx.id, token: rx.verify_token };
+  try {
+    const rx = issuePrescription(s.userId, caseSheetId, items);
+    revalidatePath(`/doctor/case/${caseSheetId}`);
+    return { ok: true as const, id: rx.id, token: rx.verify_token };
+  } catch (e) {
+    return writeError(e);
+  }
 }
 
 export async function orderTests(caseSheetId: string, tests: { test_name: string; panel?: string; urgency?: "routine" | "urgent" | "stat" }[]) {
   await requireDoctor();
-  const rows = orderInvestigations(caseSheetId, tests);
-  revalidatePath(`/doctor/case/${caseSheetId}`);
-  return { ok: true as const, count: rows.length };
+  try {
+    const rows = orderInvestigations(caseSheetId, tests);
+    revalidatePath(`/doctor/case/${caseSheetId}`);
+    return { ok: true as const, count: rows.length };
+  } catch (e) {
+    return writeError(e);
+  }
 }
 
 /** One button, one confirmation. The sheet becomes immutable, derived rows
@@ -62,7 +93,9 @@ export async function finalize(id: string) {
   const s = await requireDoctor();
   const actor = { id: s.userId, role: "doctor" as const };
   const before = caseSheet(actor, id);
-  if (!before) return { ok: false as const, error: "No such case sheet" };
+  if (!before) {
+    return { ok: false as const, error: "Could not save just now — please try again in a few seconds." };
+  }
 
   const patient = patientHeader(before.patient_id)!;
   const vitals = vitalsFor(actor, before.patient_id).find((v) => v.case_sheet_id === id);
@@ -70,17 +103,21 @@ export async function finalize(id: string) {
   const summary = await summariseCase(before, {
     patientName: patient.full_name, age: patient.age, sex: patient.sex, vitals,
   });
-  // Cached on the row: the demo reads the cache, so a network blip is invisible.
-  saveCaseSheet(s.userId, id, { ai_summary: summary.text });
-  const cs = finalizeCaseSheet(s.userId, id);
+  try {
+    // Cached on the row: the demo reads the cache, so a network blip is invisible.
+    saveCaseSheet(s.userId, id, { ai_summary: summary.text });
+    const cs = finalizeCaseSheet(s.userId, id);
 
-  notifyPatient(
-    cs.patient_id,
-    `Your visit summary from ${getProfile(s.userId)?.full_name} is now in your Nidan records.`,
-  );
-  revalidatePath(`/doctor/case/${id}`);
-  revalidatePath("/doctor");
-  return { ok: true as const, summary: summary.text, source: summary.source };
+    notifyPatient(
+      cs.patient_id,
+      `Your visit summary from ${getProfile(s.userId)?.full_name} is now in your Nidan records.`,
+    );
+    revalidatePath(`/doctor/case/${id}`);
+    revalidatePath("/doctor");
+    return { ok: true as const, summary: summary.text, source: summary.source };
+  } catch (e) {
+    return writeError(e);
+  }
 }
 
 /** Corrections after finalize create a linked amendment. They never
@@ -88,9 +125,13 @@ export async function finalize(id: string) {
  *  that signals seriousness. */
 export async function amend(id: string) {
   const s = await requireDoctor();
-  const copy = amendCaseSheet(s.userId, id);
-  revalidatePath("/doctor");
-  return { ok: true as const, id: copy.id };
+  try {
+    const copy = amendCaseSheet(s.userId, id);
+    revalidatePath("/doctor");
+    return { ok: true as const, id: copy.id };
+  } catch (e) {
+    return writeError(e);
+  }
 }
 
 export async function askAccess(patientId: string) {
@@ -159,9 +200,13 @@ export async function applyTemplate(caseSheetId: string, templateId: string) {
   const s = await requireDoctor();
   const tpl = templates.find((t) => t.id === templateId && t.doctor_id === s.userId);
   if (!tpl) return { ok: false as const, error: "No such template" };
-  saveCaseSheet(s.userId, caseSheetId, tpl.body);
-  revalidatePath(`/doctor/case/${caseSheetId}`);
-  return { ok: true as const, body: tpl.body };
+  try {
+    saveCaseSheet(s.userId, caseSheetId, tpl.body);
+    revalidatePath(`/doctor/case/${caseSheetId}`);
+    return { ok: true as const, body: tpl.body };
+  } catch (e) {
+    return writeError(e);
+  }
 }
 
 /**
