@@ -26,15 +26,21 @@ export const doctorCommands: CommandEntry[] = [
   { id: "doctor-break-glass", label: "Open an emergency card", sub: "break-glass", keywords: ["emergency", "break glass", "scan"], href: "/scan", icon: Stethoscope },
 ];
 
+// Keywords carry Hindi and Telugu alongside English — the same strings
+// already shown on screen (src/lib/i18n.ts), not hand-translated here, so a
+// patient using the app in their chosen language can say what they read.
+// Doctor/admin commands stay English-only on purpose (see AGENTS.md:
+// clinical vocabulary is never translated), which is also the only reason
+// this note lives on patientCommands and not the arrays below it.
 export const patientCommands: CommandEntry[] = [
-  { id: "patient-records", label: "Records", keywords: ["records", "home", "history"], href: "/patient/records", icon: FileHeart },
-  { id: "patient-appointments", label: "Appointments", keywords: ["appointments", "visits"], href: "/patient/appointments", icon: CalendarDays },
-  { id: "patient-book", label: "Book appointment", keywords: ["book", "new appointment", "schedule"], href: "/patient/book", icon: CalendarPlus },
-  { id: "patient-billing", label: "Billing", keywords: ["billing", "bills", "payments"], href: "/patient/billing", icon: Receipt },
-  { id: "patient-emergency", label: "Emergency", keywords: ["emergency", "first aid"], href: "/patient/emergency", icon: LifeBuoy },
-  { id: "patient-wellness", label: "Wellness", keywords: ["wellness", "checkin", "mood"], href: "/patient/wellness", icon: Activity },
-  { id: "patient-profile", label: "Profile", keywords: ["profile", "my details"], href: "/patient/profile", icon: CircleUser },
-  { id: "patient-access", label: "Who has seen my records", keywords: ["who has seen", "access log", "audit"], href: "/patient/access", icon: Search },
+  { id: "patient-records", label: "Records", keywords: ["records", "home", "history", "रिकॉर्ड", "రికార్డులు"], href: "/patient/records", icon: FileHeart },
+  { id: "patient-appointments", label: "Appointments", keywords: ["appointments", "visits", "अपॉइंटमेंट", "అపాయింట్‌మెంట్లు"], href: "/patient/appointments", icon: CalendarDays },
+  { id: "patient-book", label: "Book appointment", keywords: ["book", "new appointment", "schedule", "अपॉइंटमेंट लें", "अपॉइंटमेंट बुक करें", "అపాయింట్‌మెంట్ బుక్ చేయండి"], href: "/patient/book", icon: CalendarPlus },
+  { id: "patient-billing", label: "Billing", keywords: ["billing", "bills", "payments", "बिल", "బిల్లులు"], href: "/patient/billing", icon: Receipt },
+  { id: "patient-emergency", label: "Emergency", keywords: ["emergency", "first aid", "आपातकाल", "प्राथमिक उपचार", "అత్యవసరం", "ప్రథమ చికిత్స"], href: "/patient/emergency", icon: LifeBuoy },
+  { id: "patient-wellness", label: "Wellness", keywords: ["wellness", "checkin", "mood", "स्वास्थ्य ट्रैकर", "रोज़ की जाँच", "मनोदशा", "ఆరోగ్య ట్రాకర్", "రోజువారీ చెక్-ఇన్", "మానసిక స్థితి"], href: "/patient/wellness", icon: Activity },
+  { id: "patient-profile", label: "Profile", keywords: ["profile", "my details", "प्रोफ़ाइल", "ప్రొఫైల్"], href: "/patient/profile", icon: CircleUser },
+  { id: "patient-access", label: "Who has seen my records", keywords: ["who has seen", "access log", "audit", "मेरा रिकॉर्ड किसने देखा", "నా రికార్డులను ఎవరు చూశారు"], href: "/patient/access", icon: Search },
 ];
 
 export const adminCommands: CommandEntry[] = [

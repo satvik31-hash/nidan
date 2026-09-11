@@ -284,7 +284,10 @@ export interface VoiceMatch {
   source: "claude" | "offline";
 }
 
-const normalize = (s: string) => s.toLowerCase().trim();
+// NFC first: Devanagari/Telugu text can arrive as either precomposed or
+// decomposed Unicode depending on the browser's speech engine, and two
+// visually-identical strings in different forms fail a plain .includes().
+const normalize = (s: string) => s.normalize("NFC").toLowerCase().trim();
 
 // Splits on anything that isn't a letter/digit in Latin, Devanagari or
 // Telugu script — good enough for the three locales this app supports.
