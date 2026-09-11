@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { requestOtp, verifyOtp } from "@/app/actions/auth";
 import { Button, Card, Field } from "@/components/ui";
-import { ArrowLeft, Phone } from "lucide-react";
+import { ArrowLeft, Phone, Sparkles } from "lucide-react";
 
 // Phone number → 6-digit OTP. No password. This is how every Indian
 // consumer app works and it removes an entire class of support problem.
@@ -42,9 +42,32 @@ export default function PatientLogin() {
         <h1 className="text-[1.75rem] font-bold tracking-tight">
           Ni<span className="text-[var(--color-brand)]">dan</span>
         </h1>
-        <p className="text-[var(--color-ink-2)] mt-1 mb-6">
+        <p className="text-[var(--color-ink-2)] mt-1 mb-4">
           Sign in with the mobile number registered at your hospital.
         </p>
+
+        {/* A second, sibling product from the same team — deliberately styled
+            apart from the rest of this page (emerald, not brand blue) so it
+            reads as "also try this" rather than another step in sign-in. */}
+        <a
+          href="https://medpat-live.vercel.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center gap-3 rounded-[10px] px-4 py-3 mb-6 bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-[0_4px_20px_-4px_rgba(16,185,129,0.5)] hover:shadow-[0_6px_24px_-4px_rgba(16,185,129,0.65)] hover:-translate-y-px transition-all"
+        >
+          <span className="grid place-items-center w-9 h-9 rounded-full bg-white/15 shrink-0">
+            <Sparkles size={17} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.6875rem] uppercase tracking-[0.08em] text-white/75 font-medium">
+              Also from our team
+            </span>
+            <span className="block text-sm font-semibold leading-tight">
+              Explore MedPAT
+            </span>
+          </span>
+          <ArrowLeft size={16} className="rotate-180 opacity-80 group-hover:translate-x-0.5 transition-transform shrink-0" />
+        </a>
 
         {phase === "phone" ? (
           <form action={requestAction}>
