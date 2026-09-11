@@ -21,7 +21,7 @@ type SR = {
   start: () => void;
 };
 
-type State = "idle" | "listening" | "thinking" | "result";
+type State = "idle" | "listening" | "thinking" | "result" | "confirm-logout";
 
 export function VoiceAssistant({ commands, lang = "en-IN" }: { commands: CommandEntry[]; lang?: string }) {
   const router = useRouter();
@@ -74,14 +74,13 @@ export function VoiceAssistant({ commands, lang = "en-IN" }: { commands: Command
           speak(`Selecting ${target.label}`);
           setTimeout(() => target.onSelect(), 350);
         } else if (cmd?.id === signOutCommand.id) {
-          setMessage("Logging out.");
-          setState("result");
-          speak("Logging out");
-          setTimeout(() => {
-            fetch("/api/signout", { method: "POST" }).finally(() => {
-              window.location.href = "/";
-            });
-          }, 350);
+          // Signing out is the one irreversible thing this assistant can
+          // trigger, so it gets a confirmation step instead of acting on
+          // the first "logout" it hears — a misheard word or a stray
+          // "log out" in conversation shouldn't end the session.
+          setMessage("Are you sure you want to log out?");
+          setState("confirm-logout");
+          speak("Are you sure you want to log out?");
         } else if (cmd) {
           setMessage(`Opening ${cmd.label}.`);
           setState("result");
@@ -99,6 +98,15 @@ export function VoiceAssistant({ commands, lang = "en-IN" }: { commands: Command
     setState("listening");
   };
 
+  const confirmLogout = () => {
+    setState("idle");
+    fetch("/api/signout", { method: "POST" }).finally(() => {
+      window.location.href = "/";
+    });
+  };
+
+  const cancelLogout = () => setState("idle");
+
   return (
     <div className="fixed bottom-20 lg:bottom-5 right-5 z-40 flex flex-col items-end gap-2">
       {state !== "idle" && (
@@ -106,6 +114,25 @@ export function VoiceAssistant({ commands, lang = "en-IN" }: { commands: Command
           {state === "listening" && <p className="text-[var(--color-ink-2)]">Listening…</p>}
           {state === "thinking" && (
             <p className="text-[var(--color-ink-2)]">Heard: &ldquo;{heard}&rdquo;. Thinking…</p>
+          )}
+          {state === "confirm-logout" && (
+            <>
+              <p className="font-medium">{message}</p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={confirmLogout}
+                  className="flex-1 h-9 rounded-[6px] bg-[var(--color-critical)] text-[var(--color-on-critical)] text-sm font-medium"
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={cancelLogout}
+                  className="flex-1 h-9 rounded-[6px] border border-[var(--color-line)] text-sm font-medium hover:bg-[var(--color-paper)]"
+                >
+                  No
+                </button>
+              </div>
+            </>
           )}
           {state === "result" && (
             <>

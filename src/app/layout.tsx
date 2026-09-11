@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { OfflineIndicator } from "@/components/offline";
 import { getLocale } from "@/lib/auth";
-import { LOCALE_TAGS } from "@/lib/i18n";
+import { LOCALE_TAGS, RTL_LOCALES } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,7 +28,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
 
   return (
-    <html lang={LOCALE_TAGS[locale]} suppressHydrationWarning>
+    <html
+      lang={LOCALE_TAGS[locale]}
+      dir={RTL_LOCALES.has(locale) ? "rtl" : "ltr"}
+      suppressHydrationWarning
+    >
       <head>
         {/* A humanist sans with clear numerals and unambiguous 1 l I / 0 O.
             Dosages get misread. The Devanagari and Telugu faces ship alongside

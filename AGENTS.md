@@ -104,7 +104,10 @@ doctor console uses — there is no parallel, less-gated read path. Nothing
 under `/admin` writes to a clinical record.
 
 `src/components/voice-assistant.tsx` picks from a small, fixed global menu
-(`src/lib/commands.ts` — navigation, plus sign-out) **and** whatever the
+(`src/lib/commands.ts` — navigation, plus sign-out, which asks "Are you sure
+you want to log out?" with Yes/No before it acts — the one irreversible
+thing this menu can trigger, so it does not fire on the first match) **and**
+whatever the
 current screen has explicitly registered via `src/lib/voice-targets.tsx`
 (e.g. the booking wizard's hospital/doctor/time-slot lists, one `useVoiceTargets`
 call per step) — never anything outside that combined, explicit set. The

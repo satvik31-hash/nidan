@@ -262,28 +262,21 @@ function TextSizeControl({ label }: { label: string }) {
   );
 }
 
-/** Two characters each, so three languages still fit a phone header. */
-const LOCALE_SHORT: Record<Locale, string> = { en: "EN", hi: "हि", te: "తె" };
-
-/** Switching this changes the whole patient app, mid-demo. */
+/** Eleven languages don't fit a button row — a dropdown scales, and each
+ *  option is labelled in its own script so it stays findable even after a
+ *  reader has already switched away from one they can no longer read.
+ *  Switching this changes the whole patient app, mid-demo. */
 function LocaleSwitch({ current }: { current: Locale }) {
   return (
-    <div className="flex rounded-[6px] border border-[var(--color-line)] overflow-hidden">
+    <select
+      value={current}
+      onChange={async (e) => { await setLocale(e.target.value as Locale); location.reload(); }}
+      aria-label="Language"
+      className="h-9 px-2 rounded-[6px] border border-[var(--color-line)] bg-[var(--color-surface)] text-sm text-[var(--color-ink-2)]"
+    >
       {(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => (
-        <button
-          key={l}
-          onClick={async () => { await setLocale(l); location.reload(); }}
-          title={LOCALE_NAMES[l]}
-          className={cn(
-            "px-2 h-9 text-xs",
-            current === l
-              ? "bg-[var(--color-brand)] text-[var(--color-on-brand)] font-medium"
-              : "text-[var(--color-ink-2)] hover:bg-[var(--color-paper)]",
-          )}
-        >
-          {LOCALE_SHORT[l]}
-        </button>
+        <option key={l} value={l}>{LOCALE_NAMES[l]}</option>
       ))}
-    </div>
+    </select>
   );
 }
