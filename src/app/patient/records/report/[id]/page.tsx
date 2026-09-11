@@ -4,6 +4,8 @@ import { getLocale, requirePatient } from "@/lib/auth";
 import { documentsFor, getProfile } from "@/lib/db/store";
 import { explainReport } from "@/lib/ai";
 import { AiLabel, Badge, Card, SectionTitle } from "@/components/ui";
+import { ReadAloudButton } from "@/components/patient/read-aloud-button";
+import { LOCALE_TAGS } from "@/lib/i18n";
 import { fmtDate } from "@/lib/utils";
 import { ArrowLeft, FileText } from "lucide-react";
 
@@ -83,8 +85,9 @@ export default async function ReportPage({
         {explanation ? (
           <>
             <p className="text-[0.9375rem] whitespace-pre-line">{explanation.text}</p>
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
               <AiLabel source={explanation.source} />
+              <ReadAloudButton text={explanation.text} lang={LOCALE_TAGS[locale]} />
             </div>
             <p className="text-xs text-[var(--color-ink-3)] mt-2">
               This is background information, not a diagnosis. It has not been
