@@ -35,7 +35,12 @@ export const doctorCommands: CommandEntry[] = [
 export const patientCommands: CommandEntry[] = [
   { id: "patient-records", label: "Records", keywords: ["records", "home", "history", "रिकॉर्ड", "రికార్డులు"], href: "/patient/records", icon: FileHeart },
   { id: "patient-appointments", label: "Appointments", keywords: ["appointments", "visits", "अपॉइंटमेंट", "అపాయింట్‌మెంట్లు"], href: "/patient/appointments", icon: CalendarDays },
-  { id: "patient-book", label: "Book appointment", keywords: ["book", "new appointment", "schedule", "अपॉइंटमेंट लें", "अपॉइंटमेंट बुक करें", "అపాయింట్‌మెంట్ బుక్ చేయండి"], href: "/patient/book", icon: CalendarPlus },
+  // "book"/"बुक"/"బుక్" are also listed bare (not just inside the longer
+  // phrases below) so a code-switched "appointment book kar do" — which
+  // shares the word "appointment"/"अपॉइंटमेंट" with the Appointments list
+  // page above — still tips the match to Book appointment: the shared noun
+  // scores evenly on both commands, and it's this bare verb that decides it.
+  { id: "patient-book", label: "Book appointment", keywords: ["book", "new appointment", "schedule", "बुक", "अपॉइंटमेंट लें", "अपॉइंटमेंट बुक करें", "బుక్", "అపాయింట్‌మెంట్ బుక్ చేయండి"], href: "/patient/book", icon: CalendarPlus },
   { id: "patient-billing", label: "Billing", keywords: ["billing", "bills", "payments", "बिल", "బిల్లులు"], href: "/patient/billing", icon: Receipt },
   { id: "patient-emergency", label: "Emergency", keywords: ["emergency", "first aid", "आपातकाल", "प्राथमिक उपचार", "అత్యవసరం", "ప్రథమ చికిత్స"], href: "/patient/emergency", icon: LifeBuoy },
   { id: "patient-wellness", label: "Wellness", keywords: ["wellness", "checkin", "mood", "स्वास्थ्य ट्रैकर", "रोज़ की जाँच", "मनोदशा", "ఆరోగ్య ట్రాకర్", "రోజువారీ చెక్-ఇన్", "మానసిక స్థితి"], href: "/patient/wellness", icon: Activity },

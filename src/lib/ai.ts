@@ -287,7 +287,12 @@ export interface VoiceMatch {
 // NFC first: Devanagari/Telugu text can arrive as either precomposed or
 // decomposed Unicode depending on the browser's speech engine, and two
 // visually-identical strings in different forms fail a plain .includes().
-const normalize = (s: string) => s.normalize("NFC").toLowerCase().trim();
+// Zero-width joiners/non-joiners are stripped next — proper Telugu
+// typesetting inserts a ZWNJ inside "అపాయింట్‌మెంట్" to stop a ligature
+// forming, but a spoken transcript of the same word never contains one, so
+// without this the written and spoken forms of the same word never match.
+const normalize = (s: string) =>
+  s.normalize("NFC").replace(/[\u200B-\u200D\uFEFF]/g, "").toLowerCase().trim();
 
 // Splits on anything that isn't a letter/digit in Latin, Devanagari or
 // Telugu script — good enough for the three locales this app supports.
@@ -316,6 +321,19 @@ export async function interpretVoiceCommand(
     // direction, keyword containment in either direction, and shared words.
     const needle = normalize(transcript);
     const needleWords = new Set(tokenize(transcript));
+    // Guards the "keyword contains the (short) needle" direction: that
+    // heuristic is meant for a distinctive fragment of one long, unique
+    // option (a hospital's first name inside its full name). It misfires
+    // when the needle is itself a complete, shared word that also happens
+    // to be a keyword elsewhere in the same menu — e.g. a bare "अपॉइंटमेंट"
+    // is a whole exact match for "Appointments" and would otherwise ALSO
+    // score as a prefix-fragment match against "Book appointment"'s Hindi
+    // phrase, purely because that phrase happens to start with the same
+    // word. In that case the exact match on the other command should win
+    // outright, not tie because this one also picked up a fragment credit.
+    const allExactKeywords = new Set(
+      commands.flatMap((c) => [normalize(c.label), ...c.keywords.map(normalize)]),
+    );
     let best: { id: string; score: number } | null = null;
     for (const c of commands) {
       const phrase = normalize(c.label);
@@ -323,7 +341,9 @@ export async function interpretVoiceCommand(
       if (phrase && (needle.includes(phrase) || phrase.includes(needle))) score += 3;
       for (const k of c.keywords) {
         const kn = normalize(k);
-        if (kn && (needle.includes(kn) || kn.includes(needle))) score += 2;
+        if (!kn) continue;
+        if (needle.includes(kn)) score += 2;
+        else if (kn.includes(needle) && !allExactKeywords.has(needle)) score += 2;
       }
       for (const w of tokenize(`${c.label} ${c.keywords.join(" ")}`)) {
         if (needleWords.has(w)) score += 1;
