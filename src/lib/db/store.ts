@@ -509,6 +509,24 @@ export function appointmentsForPatient(patientId: string) {
     .sort((a, b) => b.slot_start.localeCompare(a.slot_start));
 }
 
+/** Appointments booked for this doctor since `sinceIso` — `created_at` is
+ *  when the booking happened, never touched again, which is what makes it
+ *  the right field to poll on: a status change (check-in, finalize) doesn't
+ *  create a new "someone booked" moment, only bookAppointment() does. Backs
+ *  the doctor console's in-app "Patient X booked ..." alert, polled from
+ *  the client rather than pushed, so it needs no new infrastructure. */
+export function recentBookingsFor(doctorId: string, sinceIso: string) {
+  return db.appointments
+    .filter((a) => a.doctor_id === doctorId && a.status !== "cancelled" && a.created_at > sinceIso)
+    .map((a) => ({
+      id: a.id,
+      patientName: getProfile(a.patient_id)?.full_name ?? "A patient",
+      slotStart: a.slot_start,
+      createdAt: a.created_at,
+    }))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
 /** Today's clinic, in token order — the doctor console's landing view. */
 export function todayQueue(doctorId: string) {
   const today = istDay();

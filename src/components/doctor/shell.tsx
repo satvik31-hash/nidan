@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, FileText, LayoutGrid, LogOut, Search, Stethoscope, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/doctor/command-palette";
+import { BookingAlerts } from "@/components/doctor/booking-alerts";
 import { VoiceAssistant } from "@/components/voice-assistant";
 import { VoiceTargetsProvider } from "@/lib/voice-targets";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -175,6 +176,7 @@ export function DoctorShell({
       )}
 
       <VoiceAssistant commands={doctorCommands} />
+      <BookingAlerts />
     </div>
     </VoiceTargetsProvider>
   );
